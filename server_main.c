@@ -205,8 +205,8 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         static int e_id_gen = 600;
         e.id = e_id_gen++;
-        strncpy(e.location, locName, 49);
-        strncpy(e.hazardType, hazardType, 49);
+        snprintf(e.location, sizeof(e.location), "%s", locName);
+        snprintf(e.hazardType, sizeof(e.hazardType), "%s", hazardType);
         e.priorityScore = calculatePriority(e);
         e.status = STATUS_PENDING;
 
@@ -271,16 +271,16 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         if (numMissionLogs < MAX_MISSION_LOGS) {
             missionHistory[numMissionLogs].emergencyId = e.id;
-            strncpy(missionHistory[numMissionLogs].location, e.location, 49);
-            strncpy(missionHistory[numMissionLogs].hazard, e.hazardType, 49);
+            snprintf(missionHistory[numMissionLogs].location, sizeof(missionHistory[numMissionLogs].location), "%s", e.location);
+            snprintf(missionHistory[numMissionLogs].hazard, sizeof(missionHistory[numMissionLogs].hazard), "%s", e.hazardType);
             missionHistory[numMissionLogs].affectedPeople = e.affectedPeople;
             missionHistory[numMissionLogs].peopleNeedingMedical = e.peopleNeedingMedical;
-            strncpy(missionHistory[numMissionLogs].team, t->name, 49);
-            strncpy(missionHistory[numMissionLogs].transport, tr ? tr->type : "Standard Vehicle", 49);
-            strncpy(missionHistory[numMissionLogs].destination, d->name, 49);
+            snprintf(missionHistory[numMissionLogs].team, sizeof(missionHistory[numMissionLogs].team), "%s", t->name);
+            snprintf(missionHistory[numMissionLogs].transport, sizeof(missionHistory[numMissionLogs].transport), "%s", tr ? tr->type : "Standard Vehicle");
+            snprintf(missionHistory[numMissionLogs].destination, sizeof(missionHistory[numMissionLogs].destination), "%s", d->name);
             missionHistory[numMissionLogs].distToEmergency = distToEm;
             missionHistory[numMissionLogs].distToDestination = distToDest;
-            strncpy(missionHistory[numMissionLogs].timeStr, timeStr, 31);
+            snprintf(missionHistory[numMissionLogs].timeStr, sizeof(missionHistory[numMissionLogs].timeStr), "%s", timeStr);
             numMissionLogs++;
         }
 
@@ -362,7 +362,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         int id = addRescueTeam(-1, name[0] ? name : "Quick Response Team", locId, atoi(capStr) > 0 ? atoi(capStr) : 100, 1, atoi(medStr), atoi(boatStr));
         RescueTeam t = {id, "", locId, atoi(capStr) > 0 ? atoi(capStr) : 100, 1, atoi(medStr), atoi(boatStr)};
-        strncpy(t.name, name[0] ? name : "Quick Response Team", 49);
+        snprintf(t.name, sizeof(t.name), "%s", name[0] ? name : "Quick Response Team");
         dbAddRescueTeam(t);
         snprintf(res, resSize, "{\"status\":\"success\",\"id\":%d}", id);
     }
@@ -386,7 +386,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         int id = addTransport(-1, type[0] ? type : "Emergency Van", atoi(capStr) > 0 ? atoi(capStr) : 50, 1, atoi(floodStr));
         Transport tr = {id, "", atoi(capStr) > 0 ? atoi(capStr) : 50, 1, atoi(floodStr)};
-        strncpy(tr.type, type[0] ? type : "Emergency Van", 49);
+        snprintf(tr.type, sizeof(tr.type), "%s", type[0] ? type : "Emergency Van");
         dbAddTransport(tr);
         snprintf(res, resSize, "{\"status\":\"success\",\"id\":%d}", id);
     }
@@ -417,7 +417,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         int id = addDestination(-1, name[0] ? name : "Field Hospital", locId, atoi(capStr) > 0 ? atoi(capStr) : 400, 0, atoi(medStr), 1);
         Destination d = {id, "", locId, atoi(capStr) > 0 ? atoi(capStr) : 400, 0, atoi(medStr), 1};
-        strncpy(d.name, name[0] ? name : "Field Hospital", 49);
+        snprintf(d.name, sizeof(d.name), "%s", name[0] ? name : "Field Hospital");
         dbAddDestination(d);
         snprintf(res, resSize, "{\"status\":\"success\",\"id\":%d}", id);
     }
@@ -553,7 +553,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
             snprintf(res, resSize, "{\"status\":\"success\",\"message\":\"Custom scenario imported successfully\"}");
         } else if (strcasecmp(name, "multihazard") == 0 || strcasecmp(name, "multi") == 0 || strcasecmp(name, "sample") == 0 || strcasecmp(name, "all") == 0) {
             if (importScenario("sample_natural_disasters.txt") == 0) {
-                snprintf(res, resSize, "{\"status\":\"success\",\"message\":\"Comprehensive Multi-Hazard Scenario loaded from sample_natural_disasters.txt\"}");
+                snprintf(res, resSize, "{\"status\":\"success\",\"message\":\"Comprehensive Multi-Hazard Scenario loaded from scenarios/sample_natural_disasters.txt\"}");
             } else {
                 loadAssamDemo();
                 snprintf(res, resSize, "{\"status\":\"success\",\"message\":\"Loaded default disaster scenario\"}");
@@ -594,7 +594,7 @@ int main() {
     initHeap(&emergencyQueue);
     loadAllData(&emergencyQueue);
     if (numLocations == 0) {
-        printf("Database empty. Loading Comprehensive Multi-Disaster Scenario (sample_natural_disasters.txt)...\n");
+        printf("Database empty. Loading Comprehensive Multi-Disaster Scenario (scenarios/sample_natural_disasters.txt)...\n");
         if (importScenario("sample_natural_disasters.txt") != 0) {
             loadAssamDemo();
         }

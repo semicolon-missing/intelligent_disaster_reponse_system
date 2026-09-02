@@ -75,3 +75,11 @@ Desktop.ini
 # ==============================
 
 *.log
+
+# ==============================
+# SQLite database runtime files
+# ==============================
+
+*.db-journal
+*.db-wal
+*.db-shm

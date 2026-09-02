@@ -90,7 +90,7 @@ IDRS includes pre-configured disaster datasets ready for simulation:
 
 | Scenario | Primary Disaster | Geographic Region | Key Nodes |
 |---|---|---|---|
-| **Multi-Hazard Unified Crisis** (`sample_natural_disasters.txt`) | **ALL Natural & Crisis Disasters** (Earthquake, Cyclone, Flash Flood, Landslide, Tsunami, Chemical Hazmat, Wildfire) | Multi-Terrain: Coastal Harbor, Mountain Ridge, Central Metro, River Basin, Forest Reserve, Island Sanctuary... | 10 Locations, 14 Roads, 7 Teams, 6 Transports, 6 Hospitals & Shelters |
+| **Multi-Hazard Unified Crisis** (`scenarios/sample_natural_disasters.txt`) | **ALL Natural & Crisis Disasters** (Earthquake, Cyclone, Flash Flood, Landslide, Tsunami, Chemical Hazmat, Wildfire) | Multi-Terrain: Coastal Harbor, Mountain Ridge, Central Metro, River Basin, Forest Reserve, Island Sanctuary... | 10 Locations, 14 Roads, 7 Teams, 6 Transports, 6 Hospitals & Shelters |
 | **Assam Floods** | Brahmaputra River flooding & riverbank breaches | Assam (Guwahati, Jorhat, Dibrugarh, Tezpur, Barpeta, Silchar...) | 8 Locations, 13 Roads, 5 Teams, 4 Transports, 6 Hospitals |
 | **Kerala Landslides** | Heavy monsoon rainfall, landslides & reservoir overflows | Western Ghats (Wayanad, Idukki, Munnar, Kozhikode, Kochi...) | 8 Locations, 9 Roads, 5 Teams, 4 Transports, 5 Hospitals |
 | **Uttarakhand Cloudburst** | Glacial flash floods & mountain cloudbursts | Himalayas (Kedarnath, Chamoli, Joshimath, Rudraprayag, Rishikesh...) | 8 Locations, 8 Roads, 5 Teams, 4 Transports, 5 Hospitals |
@@ -186,7 +186,7 @@ http://localhost:8080
 ```cmd
 cli.exe
 ```
-Provides a 24-option console menu for testing algorithms directly:
+Provides a 25-option console menu for testing algorithms directly:
 ```text
 =======================================================
    INTELLIGENT DISASTER RESPONSE SYSTEM (CLI)
@@ -210,18 +210,19 @@ Provides a 24-option console menu for testing algorithms directly:
  14. Add Hospital / Camp
 
  [SCENARIOS & SIMULATION]
- 15. Load Assam Floods Demo (Default)
- 16. Load Kerala Floods & Landslides Demo
- 17. Load Uttarakhand Cloudburst Demo
- 18. Load Odisha Super Cyclone Demo
- 19. Import Scenario from File (.txt)
- 20. Reset All Resources & Clear Occupancies
+ 15. Load Multi-Hazard Crisis Scenario (scenarios/sample_natural_disasters.txt)
+ 16. Load Assam Floods Demo
+ 17. Load Kerala Floods & Landslides Demo
+ 18. Load Uttarakhand Cloudburst Demo
+ 19. Load Odisha Super Cyclone Demo
+ 20. Import Custom Scenario from File (.txt)
+ 21. Reset All Resources & Clear Occupancies
 
  [EMERGENCIES & DISPATCH]
- 21. Report / Add New Emergency
- 22. View Priority Queue (Max Heap)
- 23. Dispatch Highest Priority Emergency
- 24. Show Last Rescue Dispatch Plan
+ 22. Report / Add New Emergency
+ 23. View Priority Queue (Max Heap)
+ 24. Dispatch Highest Priority Emergency
+ 25. Show Last Rescue Dispatch Plan
   0. Exit
 -------------------------------------------------------
 ```
@@ -240,13 +241,15 @@ intelligent_disaster_reponse_system/
 ├── scenario_import.c / .h    # Multi-scenario presets & custom text parser
 ├── httpserver.c / .h         # Winsock2 non-blocking HTTP file & REST server
 ├── server_main.c             # Web server entry point & 20 REST API endpoints
-├── main.c                    # Interactive 24-menu console CLI application
+├── main.c                    # Interactive 25-menu console CLI application
 ├── public/
 │   └── index.html            # Tactical HUD Web UI with Vis.js interactive network
-├── assam_scenario.txt        # Assam Floods scenario definition
-├── kerala_scenario.txt       # Kerala Floods & Landslides scenario definition
-├── uttarakhand_scenario.txt  # Uttarakhand Cloudburst scenario definition
-├── odisha_scenario.txt       # Odisha Super Cyclone scenario definition
+├── scenarios/                # Pre-configured & custom scenario definitions (.txt)
+│   ├── sample_natural_disasters.txt  # Multi-Hazard unified crisis dataset
+│   ├── assam_scenario.txt            # Assam Floods scenario definition
+│   ├── kerala_scenario.txt           # Kerala Floods & Landslides scenario definition
+│   ├── uttarakhand_scenario.txt      # Uttarakhand Cloudburst scenario definition
+│   └── odisha_scenario.txt           # Odisha Super Cyclone scenario definition
 ├── build.bat                 # Windows one-click compilation script
 ├── Makefile                  # Standard GNU / MinGW Makefile
 └── README.md                 # Project documentation

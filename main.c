@@ -32,7 +32,7 @@ void printMenu() {
     printf(" 13. View Hospitals & Evacuation Camps\n");
     printf(" 14. Add Hospital / Camp\n");
     printf("\n [SCENARIOS & SIMULATION]\n");
-    printf(" 15. Load Multi-Hazard Crisis Scenario (sample_natural_disasters.txt)\n");
+    printf(" 15. Load Multi-Hazard Crisis Scenario (scenarios/sample_natural_disasters.txt)\n");
     printf(" 16. Load Assam Floods Demo\n");
     printf(" 17. Load Kerala Floods & Landslides Demo\n");
     printf(" 18. Load Uttarakhand Cloudburst Demo\n");
@@ -144,7 +144,7 @@ int main() {
             scanf("%d %d %d %d", &loc, &cap, &med, &boat);
             int id = addRescueTeam(-1, name, loc, cap, 1, med, boat);
             RescueTeam t = {id, "", loc, cap, 1, med, boat};
-            strncpy(t.name, name, 49);
+            snprintf(t.name, sizeof(t.name), "%s", name);
             dbAddRescueTeam(t);
             printf("Rescue Team '%s' registered with ID %d.\n", name, id);
         }
@@ -165,7 +165,7 @@ int main() {
             scanf("%d %d", &cap, &flood);
             int id = addTransport(-1, type, cap, 1, flood);
             Transport tr = {id, "", cap, 1, flood};
-            strncpy(tr.type, type, 49);
+            snprintf(tr.type, sizeof(tr.type), "%s", type);
             dbAddTransport(tr);
             printf("Transport '%s' registered with ID %d.\n", type, id);
         }
@@ -188,13 +188,13 @@ int main() {
             scanf("%d %d %d", &loc, &cap, &med);
             int id = addDestination(-1, name, loc, cap, 0, med, 1);
             Destination d = {id, "", loc, cap, 0, med, 1};
-            strncpy(d.name, name, 49);
+            snprintf(d.name, sizeof(d.name), "%s", name);
             dbAddDestination(d);
             printf("Destination '%s' registered with ID %d.\n", name, id);
         }
         else if (choice == 15) {
             if (importScenario("sample_natural_disasters.txt") == 0) {
-                printf("Comprehensive Multi-Hazard Scenario successfully loaded from 'sample_natural_disasters.txt'.\n");
+                printf("Comprehensive Multi-Hazard Scenario successfully loaded from 'scenarios/sample_natural_disasters.txt'.\n");
             } else {
                 loadAssamDemo();
                 printf("Default Scenario Loaded.\n");
@@ -218,7 +218,7 @@ int main() {
         }
         else if (choice == 20) {
             char file[128];
-            printf("Enter scenario filepath (default: sample_natural_disasters.txt): ");
+            printf("Enter scenario filepath (default: scenarios/sample_natural_disasters.txt): ");
             scanf("%127s", file);
             if (importScenario(file) == 0) {
                 printf("Scenario successfully imported from '%s'.\n", file);

@@ -160,6 +160,11 @@ int importScenarioFromString(const char *content) {
 
 int importScenario(const char *filename) {
     FILE *f = fopen(filename, "rb");
+    if (!f) {
+        char altPath[512];
+        snprintf(altPath, sizeof(altPath), "scenarios/%s", filename);
+        f = fopen(altPath, "rb");
+    }
     if (!f) return -1;
     
     fseek(f, 0, SEEK_END);
