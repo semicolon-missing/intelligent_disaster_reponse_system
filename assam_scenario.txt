@@ -1,0 +1,53 @@
+﻿# Assam flood scenario
+[LOCATIONS]
+Guwahati
+Jorhat
+Dibrugarh
+Tezpur
+Barpeta
+Silchar
+Nagaon
+Goalpara
+
+[ROADS]
+Guwahati | Jorhat | 10
+Guwahati | Barpeta | 20
+Jorhat | Tezpur | 15
+Barpeta | Tezpur | 12
+Guwahati | Tezpur | 22
+Tezpur | Dibrugarh | 30
+Jorhat | Dibrugarh | 25
+Guwahati | Nagaon | 12
+Nagaon | Jorhat | 18
+Guwahati | Goalpara | 15
+Barpeta | Goalpara | 10
+Guwahati | Silchar | 40
+Nagaon | Silchar | 35
+
+[TEAMS]
+Assam Rifles Alpha | Guwahati | 150 | yes | yes
+NDRF 1st Battalion | Jorhat | 120 | yes | yes
+SDRF Quick Response | Tezpur | 90 | yes | yes
+Army Medical Corps | Guwahati | 80 | yes | no
+Civil Defense Unit | Barpeta | 60 | no | yes
+
+[TRANSPORT]
+IAF Mi-17 Helicopter | 60 | yes
+NDRF Motorboat Fleet | 40 | yes
+Heavy All-Terrain Truck | 80 | yes
+Trauma Ambulance Fleet | 25 | no
+
+[DESTINATIONS]
+Guwahati Medical College | Guwahati | 600 | yes
+Jorhat Civil Hospital | Jorhat | 350 | yes
+Tezpur District Relief Camp | Tezpur | 400 | no
+Dibrugarh Base Hospital | Dibrugarh | 300 | yes
+Barpeta Mega Shelter | Barpeta | 450 | no
+Silchar Medical Center | Silchar | 350 | yes
+
+[EMERGENCIES]
+Dibrugarh | Flood | 320 | 240
+Barpeta | Flood | 180 | 70
+Tezpur | Landslide | 110 | 95
+Goalpara | Flood | 160 | 50
+Silchar | Flash Flood | 260 | 140

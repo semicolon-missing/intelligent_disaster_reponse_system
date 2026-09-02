@@ -1,0 +1,45 @@
+﻿# Odisha super cyclone scenario
+[LOCATIONS]
+Bhubaneswar
+Puri
+Cuttack
+Paradip
+Balasore
+Berhampur
+Kendrapara
+
+[ROADS]
+Bhubaneswar | Cuttack | 28
+Bhubaneswar | Puri | 60
+Cuttack | Paradip | 82
+Cuttack | Balasore | 170
+Bhubaneswar | Berhampur | 175
+Puri | Berhampur | 160
+Cuttack | Kendrapara | 55
+Kendrapara | Paradip | 45
+
+[TEAMS]
+ODRAF Rapid Action Unit | Bhubaneswar | 250 | yes | yes
+NDRF 3rd Battalion | Paradip | 200 | yes | yes
+Coast Guard Marine Unit | Puri | 140 | yes | yes
+Cuttack Emergency Squad | Cuttack | 110 | yes | no
+Berhampur Civil Defense | Berhampur | 90 | no | yes
+
+[TRANSPORT]
+Coast Guard Hovercraft | 100 | yes
+Navy Sea King Helicopter | 60 | yes
+Heavy Amphibious Trucks | 80 | yes
+Mobile Medical Vans | 40 | no
+
+[DESTINATIONS]
+AIIMS Bhubaneswar | Bhubaneswar | 900 | yes
+SCB Medical College Cuttack | Cuttack | 750 | yes
+Paradip Port Trust Hospital | Paradip | 350 | yes
+Puri Cyclone Shelter & Clinic | Puri | 600 | yes
+Balasore District Camp | Balasore | 450 | no
+
+[EMERGENCIES]
+Paradip | Cyclone | 650 | 420
+Puri | Storm Surge | 500 | 280
+Kendrapara | Flood | 340 | 190
+Balasore | Cyclone | 300 | 130

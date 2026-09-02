@@ -1,0 +1,46 @@
+﻿# Uttarakhand cloudburst and flash flood scenario
+[LOCATIONS]
+Dehradun
+Rishikesh
+Haridwar
+Chamoli
+Rudraprayag
+Joshimath
+Kedarnath
+Uttarkashi
+
+[ROADS]
+Dehradun | Rishikesh | 45
+Rishikesh | Haridwar | 25
+Rishikesh | Rudraprayag | 140
+Rudraprayag | Chamoli | 70
+Chamoli | Joshimath | 50
+Rudraprayag | Kedarnath | 75
+Dehradun | Uttarkashi | 145
+Rishikesh | Uttarkashi | 165
+
+[TEAMS]
+ITBP High Altitude Team | Joshimath | 150 | yes | no
+SDRF Mountain Rescue | Rishikesh | 180 | yes | yes
+Garhwal Scouts Unit | Chamoli | 100 | yes | no
+Air Force Mi-17 Crew | Dehradun | 90 | yes | yes
+Civil Volunteer Corps | Haridwar | 70 | no | no
+
+[TRANSPORT]
+IAF Mi-17 V5 Helicopter | 80 | yes
+Cheetah Mountain Chopper | 20 | yes
+4x4 Mountain Rescue Jeeps | 40 | yes
+Advanced Life Support Van | 25 | no
+
+[DESTINATIONS]
+AIIMS Rishikesh | Rishikesh | 800 | yes
+Dehradun Military Hospital | Dehradun | 500 | yes
+Chamoli District Hospital | Chamoli | 250 | yes
+Haridwar Mega Relief Camp | Haridwar | 900 | no
+Joshimath Field Hospital | Joshimath | 200 | yes
+
+[EMERGENCIES]
+Kedarnath | Flash Flood | 420 | 320
+Chamoli | Cloudburst | 240 | 180
+Joshimath | Landslide | 190 | 100
+Uttarkashi | Flash Flood | 160 | 90

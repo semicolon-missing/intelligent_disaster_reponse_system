@@ -1,0 +1,74 @@
+# ==============================================================================
+# INTELLIGENT DISASTER RESPONSE SYSTEM - COMPREHENSIVE MULTI-HAZARD SCENARIO
+# Description: Unified test environment covering ALL major natural and crisis
+#              disasters: Cyclones, Earthquakes, Flash Floods, Landslides,
+#              Wildfires, Tsunamis, and Hazmat/Chemical emergencies.
+# ==============================================================================
+
+[LOCATIONS]
+Central_Metro
+River_Basin
+Highland_Ridge
+Coastal_Harbor
+Industrial_District
+Suburban_Town
+Forest_Reserve
+Island_Sanctuary
+North_Valley
+Southern_Plains
+
+[ROADS]
+# Format: From | To | Distance(km)
+Central_Metro | Suburban_Town | 15
+Central_Metro | Industrial_District | 12
+Central_Metro | River_Basin | 25
+Suburban_Town | Southern_Plains | 20
+Industrial_District | Coastal_Harbor | 35
+Central_Metro | Highland_Ridge | 45
+Highland_Ridge | North_Valley | 30
+North_Valley | River_Basin | 22
+Coastal_Harbor | Island_Sanctuary | 18
+Coastal_Harbor | Southern_Plains | 40
+Highland_Ridge | Forest_Reserve | 25
+Forest_Reserve | Suburban_Town | 28
+River_Basin | Suburban_Town | 18
+Industrial_District | Southern_Plains | 32
+
+[TEAMS]
+# Format: Name | BaseLocation | Capacity | MedicalKit(yes/no) | RescueBoat(yes/no)
+NDRF Heavy Urban SAR | Central_Metro | 250 | yes | no
+Coastal Marine Amphibious Force | Coastal_Harbor | 180 | yes | yes
+Highland Alpine Rescue Team | Highland_Ridge | 120 | yes | no
+Hazmat Chemical Response Corps | Industrial_District | 140 | yes | no
+Riverine Flood Rescue Division | River_Basin | 110 | yes | yes
+Civil Defense Volunteer Brigade | Suburban_Town | 90 | no | yes
+Southern Rapid Relief Squad | Southern_Plains | 130 | yes | no
+
+[TRANSPORT]
+# Format: VehicleType | Capacity | FloodAmphibiousSuitable(yes/no)
+Heavy Amphibious Rescue Trucks | 90 | yes
+Search & Rescue Helicopter Fleet | 60 | yes
+High-Speed Disaster Motorboats | 45 | yes
+Advanced Mobile ICU Ambulances | 30 | no
+Heavy Evacuation Transport Busses | 110 | no
+4x4 Mountain Tactical Jeeps | 35 | yes
+
+[DESTINATIONS]
+# Format: FacilityName | Location | Capacity | TraumaMedicalSupport(yes/no)
+Apex Multi-Specialty Trauma Center | Central_Metro | 900 | yes
+Southern Regional Base Hospital | Southern_Plains | 700 | yes
+Coastal Naval Medical Station | Coastal_Harbor | 450 | yes
+Suburban Mega Evacuation Shelter | Suburban_Town | 1000 | no
+North Valley Community Hospital | North_Valley | 350 | yes
+Highland Emergency Medical Post | Highland_Ridge | 250 | yes
+
+[EMERGENCIES]
+# Format: Location | HazardType | AffectedSouls | CriticalMedicalUrgent
+Coastal_Harbor | Cyclone | 580 | 340
+Central_Metro | Earthquake | 490 | 360
+River_Basin | Flash Flood | 340 | 130
+Highland_Ridge | Landslide | 230 | 180
+Industrial_District | Chemical | 190 | 160
+Forest_Reserve | Fire | 150 | 50
+Island_Sanctuary | Tsunami | 320 | 220
+North_Valley | Flood | 210 | 80

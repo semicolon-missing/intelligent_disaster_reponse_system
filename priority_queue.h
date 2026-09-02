@@ -6,15 +6,14 @@
 #define STATUS_IN_PROGRESS 2
 #define STATUS_RESCUED     3
 
-
 #define MAX_EMERGENCIES 100
 
 typedef struct {
     int id;
     char location[50];
-    int severity;
+    char hazardType[50]; // e.g. "Flood", "Earthquake", "Fire"
     int affectedPeople;
-    int medicalUrgency;
+    int peopleNeedingMedical;
     float priorityScore;
     int status;
 } Emergency;
@@ -34,5 +33,4 @@ void heapifyDown(MaxHeap *heap, int index);
 int isHeapEmpty(MaxHeap *heap);
 void printHeap(MaxHeap *heap);
 
-
-#endif PRIORITY_QUEUE_H
+#endif // PRIORITY_QUEUE_H

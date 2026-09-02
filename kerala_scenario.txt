@@ -1,0 +1,47 @@
+﻿# Kerala flood and landslide scenario
+[LOCATIONS]
+Kochi
+Alappuzha
+Wayanad
+Kozhikode
+Thrissur
+Kottayam
+Munnar
+Idukki
+
+[ROADS]
+Kochi | Alappuzha | 53
+Kochi | Thrissur | 75
+Thrissur | Kozhikode | 115
+Kozhikode | Wayanad | 85
+Kochi | Kottayam | 60
+Kottayam | Alappuzha | 45
+Kottayam | Idukki | 80
+Thrissur | Munnar | 130
+Idukki | Munnar | 55
+
+[TEAMS]
+Backwater Coastal Rescue | Kochi | 220 | yes | yes
+Highland Mountain Rescue | Wayanad | 120 | yes | no
+NDRF 4th Battalion | Thrissur | 180 | yes | yes
+Kerala Police Disaster Unit | Alappuzha | 90 | yes | yes
+Idukki Terrain Squad | Idukki | 80 | no | no
+
+[TRANSPORT]
+Rescue Speedboats | 90 | yes
+Air Force ALH Dhruv | 50 | yes
+Heavy Offroad Trucks | 70 | yes
+Advanced Mobile Ambulances | 30 | no
+
+[DESTINATIONS]
+Kochi Aster Medcity | Kochi | 700 | yes
+Kozhikode Medical College | Kozhikode | 500 | yes
+Alappuzha General Hospital | Alappuzha | 400 | yes
+Thrissur Disaster Relief Camp | Thrissur | 550 | no
+Wayanad Base Hospital | Wayanad | 300 | yes
+
+[EMERGENCIES]
+Wayanad | Landslide | 380 | 260
+Alappuzha | Flood | 480 | 160
+Munnar | Flash Flood | 140 | 90
+Idukki | Landslide | 200 | 130

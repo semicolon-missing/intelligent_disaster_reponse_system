@@ -7,7 +7,7 @@
             road blocking, route reconstruction.
    ========================================================= */
 
-#define MAX_LOCATIONS   20
+#define MAX_LOCATIONS   50
 #define MAX_NAME_LEN    50
 #define INF             999999   /* "no road" sentinel, also used as unreachable distance */
 
@@ -42,7 +42,7 @@ extern int parent[MAX_LOCATIONS];
    Setup
    --------------------------------------------------------- */
 void initializeGraph(void);
-int  addLocation(const char *name);                 /* returns the new location's id, -1 if full */
+int  addLocation(int id, const char *name);                 /* returns the new location's id, -1 if full */
 void addRoad(int source, int destination, int distance);
 void loadAssamSampleData(void);                      /* preloads the sample flood scenario locations/roads */
 
@@ -67,6 +67,7 @@ void dfsUtil(int node, int visitedArr[]);
    --------------------------------------------------------- */
 void dijkstra(int source, int destination);           /* fills dist_[] and parent[], prints summary */
 int  getShortestDistance(int source, int destination); /* convenience: run dijkstra + return dist_[destination] */
+int  getShortestPath(int source, int destination, int pathBuffer[], int maxPathLen); /* returns length of path */
 void printRoute(int source, int destination);          /* reconstructs path from parent[] and prints it */
 
 /* ---------------------------------------------------------

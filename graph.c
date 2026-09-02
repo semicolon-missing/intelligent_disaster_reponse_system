@@ -30,15 +30,17 @@ void initializeGraph(void) {
     }
 }
 
-int addLocation(const char *name) {
+int addLocation(int id, const char *name) {
     if (numLocations >= MAX_LOCATIONS) {
         printf("Error: Maximum number of locations reached.\n");
         return -1;
     }
-    int id = numLocations;
-    locations[id].id = id;
-    strncpy(locations[id].name, name, MAX_NAME_LEN - 1);
-    locations[id].name[MAX_NAME_LEN - 1] = '\0';
+    // If id is -1, auto-assign for memory (though db should provide it)
+    if (id == -1) id = numLocations;
+    
+    locations[numLocations].id = id;
+    strncpy(locations[numLocations].name, name, MAX_NAME_LEN - 1);
+    locations[numLocations].name[MAX_NAME_LEN - 1] = '\0';
     numLocations++;
     return id;
 }
@@ -59,11 +61,11 @@ void addRoad(int source, int destination, int distance) {
 void loadAssamSampleData(void) {
     initializeGraph();
 
-    int guwahati = addLocation("Guwahati");
-    int jorhat   = addLocation("Jorhat");
-    int dibrugarh = addLocation("Dibrugarh");
-    int tezpur   = addLocation("Tezpur");
-    int barpeta  = addLocation("Barpeta");
+    int guwahati = addLocation(-1, "Guwahati");
+    int jorhat   = addLocation(-1, "Jorhat");
+    int dibrugarh = addLocation(-1, "Dibrugarh");
+    int tezpur   = addLocation(-1, "Tezpur");
+    int barpeta  = addLocation(-1, "Barpeta");
 
     /* Roads from the sample scenario in the proposal, plus a
        couple of extra links so the network stays connected
@@ -267,6 +269,26 @@ void dijkstra(int source, int destination) {
 int getShortestDistance(int source, int destination) {
     dijkstra(source, destination);
     return dist_[destination];
+}
+
+int getShortestPath(int source, int destination, int pathBuffer[], int maxPathLen) {
+    dijkstra(source, destination);
+    if (dist_[destination] == INF || source < 0 || destination < 0 || source >= numLocations || destination >= numLocations) {
+        return 0;
+    }
+    int temp[MAX_LOCATIONS];
+    int count = 0;
+    int current = destination;
+    while (current != -1 && count < MAX_LOCATIONS) {
+        temp[count++] = current;
+        if (current == source) break;
+        current = parent[current];
+    }
+    int outLen = 0;
+    for (int i = count - 1; i >= 0 && outLen < maxPathLen; i--) {
+        pathBuffer[outLen++] = temp[i];
+    }
+    return outLen;
 }
 
 void printRoute(int source, int destination) {
