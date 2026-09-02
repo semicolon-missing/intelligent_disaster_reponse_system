@@ -1,83 +1,111 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacNet IDRS - Tactical Disaster Response Command Center</title>
+    <title>TacNet IDRS - Intelligent Disaster Response Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        tactical: { 950: '#050811', 900: '#0a0f1d', 850: '#0f172a', 800: '#15203b', 700: '#1e293b', 600: '#334155' },
-                        radar: '#06b6d4',
-                        alert: '#ef4444',
-                        amber: '#f59e0b',
-                        success: '#10b981'
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Consolas', 'Menlo', 'monospace']
                     }
                 }
             }
         };
     </script>
     <style>
-        body { background-color: #070c18; color: #e2e8f0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
-        .glass-panel { background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 0.75rem; }
-        .glass-panel-glow { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(6, 182, 212, 0.35); box-shadow: 0 0 25px rgba(6, 182, 212, 0.12); border-radius: 0.75rem; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
-        #network { height: 100%; width: 100%; border-radius: 0.5rem; outline: none; background: radial-gradient(circle at center, #0f172a 0%, #060a14 100%); }
-        .modal-enter { animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .pulse-dispatch { animation: pulseGlow 1.8s infinite; }
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
-            70% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .card-surface {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+            border-radius: 0.75rem;
+        }
+        .card-surface-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-surface-hover:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-1px);
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        #network {
+            height: 100%;
+            width: 100%;
+            border-radius: 0.75rem;
+            outline: none;
+            background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%);
+        }
+        .modal-enter {
+            animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.97) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .smooth-sidebar {
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
         }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden bg-slate-950 select-none">
+<body class="h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800 select-none">
 
-    <!-- Top Command Navigation Bar -->
-    <header class="glass-panel mx-3 mt-3 px-5 py-3 flex justify-between items-center z-20 shadow-xl border-slate-800">
-        <div class="flex items-center space-x-4">
-            <div class="relative flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400">
-                <i class="fa-solid fa-satellite-dish text-xl animate-pulse"></i>
-                <span class="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
+    <!-- Top Navigation Bar -->
+    <header class="card-surface mx-3 mt-2.5 px-5 py-2.5 flex justify-between items-center z-20 shrink-0">
+        <!-- Left: Logo & System Status -->
+        <div class="flex items-center space-x-3.5">
+            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 shadow-sm">
+                <i class="fa-solid fa-shield-halved text-lg"></i>
             </div>
             <div>
                 <div class="flex items-center space-x-2">
-                    <h1 class="text-lg font-black tracking-widest text-white uppercase flex items-center">
-                        TacNet <span class="text-cyan-400 ml-1 font-mono font-bold">IDRS</span>
+                    <h1 class="text-base font-bold tracking-tight text-slate-900 flex items-center">
+                        TacNet <span class="text-blue-600 ml-1 font-semibold">IDRS</span>
                     </h1>
-                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800/80 text-cyan-300">
+                    <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
                         C Core v2.0
                     </span>
-                    <span class="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300 flex items-center">
-                        <i class="fa-solid fa-circle text-[6px] mr-1.5 text-emerald-400 animate-pulse"></i> REST :8080
+                    <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> REST :8080
                     </span>
                 </div>
-                <p class="text-[11px] text-slate-400 tracking-wide">Intelligent Disaster Response Decision Support System</p>
+                <p class="text-[11px] text-slate-400 font-medium">Intelligent Disaster Response Decision Support System</p>
             </div>
         </div>
 
-        <!-- Center Controls: Scenario Selector & Actions -->
-        <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2 bg-slate-900/90 border border-slate-700/80 rounded-lg px-3 py-1.5 shadow-inner">
-                <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center">
-                    <i class="fa-solid fa-map mr-1.5 text-cyan-400"></i> Scenario:
+        <!-- Center: Scenario Controls & Sync -->
+        <div class="flex items-center space-x-2.5">
+            <div class="flex items-center space-x-2 bg-slate-100/80 border border-slate-200 rounded-lg px-2.5 py-1">
+                <label class="text-[11px] font-semibold text-slate-500 flex items-center">
+                    <i class="fa-solid fa-map-location-dot mr-1.5 text-blue-600"></i> Scenario:
                 </label>
-                <select id="scenario-select" onchange="switchScenario(this.value)" class="bg-slate-800 text-xs font-semibold text-white border border-slate-700 rounded px-2.5 py-1 focus:border-cyan-500 focus:outline-none transition cursor-pointer">
-                    <option value="multihazard" selected>🌐 Multi-Hazard Unified Crisis (All Disasters)</option>
+                <select id="scenario-select" onchange="switchScenario(this.value)" class="bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-md px-2.5 py-1 focus:border-blue-500 focus:outline-none transition cursor-pointer shadow-sm">
+                    <option value="multihazard" selected>Multi-Hazard Unified Crisis (All Disasters)</option>
                     <option value="assam">Assam Floods (Brahmaputra Valley)</option>
                     <option value="kerala">Kerala Floods & Landslides (Wayanad/Idukki)</option>
                     <option value="uttarakhand">Uttarakhand Flash Floods (Kedarnath)</option>
@@ -85,295 +113,363 @@
                 </select>
             </div>
 
-            <button onclick="openScenarioModal()" title="Upload or paste custom scenario file" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-file-import mr-1.5 text-cyan-400"></i> Import
+            <button onclick="openScenarioModal()" title="Upload or paste custom scenario file" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
+                <i class="fa-solid fa-file-import mr-1.5 text-blue-600"></i> Import
             </button>
             
-            <button onclick="resetAllResources()" title="Reset rescue team availability and clear hospital occupancies" class="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-700/60 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-rotate-left mr-1.5"></i> Reset Fleet
+            <button onclick="resetAllResources()" title="Reset rescue team availability and clear hospital occupancies" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
+                <i class="fa-solid fa-rotate-left mr-1.5 text-amber-500"></i> Reset Fleet
             </button>
 
-            <button onclick="refreshAll()" title="Synchronize state from backend" class="bg-cyan-950/50 hover:bg-cyan-900/70 border border-cyan-700/60 text-cyan-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-arrows-rotate mr-1.5" id="sync-icon"></i> Sync
+            <button onclick="refreshAll()" title="Synchronize state from backend" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
+                <i class="fa-solid fa-arrows-rotate mr-1.5 text-blue-100" id="sync-icon"></i> Sync
+            </button>
+        </div>
+
+        <!-- Right: Layout View Toggles -->
+        <div class="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
+            <button onclick="toggleSidebar('left')" id="btn-toggle-left" title="Toggle Queue Sidebar" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition text-xs font-medium flex items-center space-x-1">
+                <i class="fa-solid fa-bars-staggered"></i>
+                <span class="text-[11px] hidden sm:inline">Queue</span>
+            </button>
+            <button onclick="toggleSidebar('right')" id="btn-toggle-right" title="Toggle Fleet Sidebar" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition text-xs font-medium flex items-center space-x-1">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <span class="text-[11px] hidden sm:inline">Fleet</span>
             </button>
         </div>
     </header>
 
-    <!-- Tactical Metrics HUD Banner -->
-    <section class="mx-3 mt-2 grid grid-cols-2 md:grid-cols-6 gap-2.5 z-10">
+    <!-- Clean, Streamlined Metrics Status Strip -->
+    <section class="mx-3 mt-2 grid grid-cols-2 md:grid-cols-6 gap-2.5 z-10 shrink-0">
         <!-- Metric 1: Pending Emergencies -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-red-500 flex justify-between items-center shadow-md">
-            <div>
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Active Emergencies</p>
-                <div class="flex items-baseline space-x-2">
-                    <span id="metric-pending" class="text-2xl font-black font-mono text-red-400">0</span>
-                    <span id="metric-max-score" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-950 border border-red-800 text-red-300">Max: 0.0</span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Emergencies</div>
+                    <div class="flex items-baseline space-x-1.5">
+                        <span id="metric-pending" class="text-xl font-bold font-mono text-rose-600">0</span>
+                        <span id="metric-max-score" class="text-[10px] font-mono font-semibold px-1 rounded bg-rose-50 text-rose-700">Max: 0.0</span>
+                    </div>
                 </div>
             </div>
-            <div class="text-red-500/30 text-2xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
         </div>
 
         <!-- Metric 2: Souls at Risk -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-orange-500 flex justify-between items-center shadow-md">
-            <div>
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">People At Risk</p>
-                <div class="flex items-baseline space-x-2">
-                    <span id="metric-affected" class="text-2xl font-black font-mono text-orange-400">0</span>
-                    <span class="text-[10px] text-pink-400 flex items-center font-bold" title="Critical Medical Patients">
-                        <i class="fa-solid fa-staff-snake mr-1"></i><span id="metric-medical">0</span>
-                    </span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-users text-sm"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">People At Risk</div>
+                    <div class="flex items-baseline space-x-1.5">
+                        <span id="metric-affected" class="text-xl font-bold font-mono text-slate-800">0</span>
+                        <span class="text-[10px] text-rose-600 font-semibold flex items-center" title="Critical Medical Patients">
+                            <i class="fa-solid fa-heart-pulse mr-0.5 text-[9px]"></i><span id="metric-medical">0</span>
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div class="text-orange-500/30 text-2xl"><i class="fa-solid fa-users-rays"></i></div>
         </div>
 
         <!-- Metric 3: Rescue Teams Ready -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-blue-500 flex justify-between items-center shadow-md">
-            <div>
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Teams Readiness</p>
-                <div class="flex items-baseline space-x-1.5">
-                    <span id="metric-teams-avail" class="text-2xl font-black font-mono text-blue-400">0</span>
-                    <span class="text-xs text-slate-500 font-mono">/</span>
-                    <span id="metric-teams-total" class="text-sm font-bold font-mono text-slate-400">0</span>
-                    <span class="text-[10px] text-blue-300 ml-1 font-semibold">Ready</span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-user-shield text-sm"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Teams Ready</div>
+                    <div class="flex items-baseline space-x-1 font-mono">
+                        <span id="metric-teams-avail" class="text-xl font-bold text-blue-600">0</span>
+                        <span class="text-xs text-slate-400">/</span>
+                        <span id="metric-teams-total" class="text-xs font-semibold text-slate-500">0</span>
+                    </div>
                 </div>
             </div>
-            <div class="text-blue-500/30 text-2xl"><i class="fa-solid fa-person-military-pointing"></i></div>
         </div>
 
         <!-- Metric 4: Transport Fleet Ready -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-purple-500 flex justify-between items-center shadow-md">
-            <div>
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Transport Fleet</p>
-                <div class="flex items-baseline space-x-1.5">
-                    <span id="metric-transports-avail" class="text-2xl font-black font-mono text-purple-400">0</span>
-                    <span class="text-xs text-slate-500 font-mono">/</span>
-                    <span id="metric-transports-total" class="text-sm font-bold font-mono text-slate-400">0</span>
-                    <span class="text-[10px] text-purple-300 ml-1 font-semibold">Active</span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-truck-medical text-sm"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Transport Fleet</div>
+                    <div class="flex items-baseline space-x-1 font-mono">
+                        <span id="metric-transports-avail" class="text-xl font-bold text-indigo-600">0</span>
+                        <span class="text-xs text-slate-400">/</span>
+                        <span id="metric-transports-total" class="text-xs font-semibold text-slate-500">0</span>
+                    </div>
                 </div>
             </div>
-            <div class="text-purple-500/30 text-2xl"><i class="fa-solid fa-helicopter"></i></div>
         </div>
 
         <!-- Metric 5: Hospital & Shelter Capacity -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-emerald-500 flex justify-between items-center shadow-md">
-            <div class="w-full mr-2">
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Shelter Occupancy</p>
-                <div class="flex items-baseline justify-between mb-1">
-                    <span class="text-sm font-black font-mono text-emerald-400">
-                        <span id="metric-dest-occ">0</span><span class="text-xs text-slate-400"> / <span id="metric-dest-cap">0</span></span>
-                    </span>
-                    <span id="metric-dest-pct" class="text-[10px] font-mono text-slate-400">0%</span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3 w-full">
+                <div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-hospital text-sm"></i>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div id="metric-dest-bar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                        <span>Shelters</span>
+                        <span id="metric-dest-pct" class="font-mono text-slate-500 font-semibold">0%</span>
+                    </div>
+                    <div class="flex items-baseline space-x-1 font-mono">
+                        <span id="metric-dest-occ" class="text-base font-bold text-emerald-600">0</span>
+                        <span class="text-xs text-slate-400">/<span id="metric-dest-cap">0</span></span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-1 mt-0.5 overflow-hidden">
+                        <div id="metric-dest-bar" class="bg-emerald-500 h-1 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
                 </div>
             </div>
-            <div class="text-emerald-500/30 text-2xl"><i class="fa-solid fa-square-h"></i></div>
         </div>
 
         <!-- Metric 6: Network Road Status -->
-        <div class="glass-panel px-3.5 py-2.5 border-l-4 border-l-amber-500 flex justify-between items-center shadow-md">
-            <div>
-                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Road Disruptions</p>
-                <div class="flex items-baseline space-x-2">
-                    <span id="metric-blocked-roads" class="text-2xl font-black font-mono text-amber-400">0</span>
-                    <span class="text-[10px] font-semibold text-slate-400">Blocked</span>
+        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-road-barrier text-sm"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Road Disruptions</div>
+                    <div class="flex items-baseline space-x-1.5">
+                        <span id="metric-blocked-roads" class="text-xl font-bold font-mono text-slate-700">0</span>
+                        <span class="text-[10px] font-semibold text-slate-400">blocked</span>
+                    </div>
                 </div>
             </div>
-            <div class="text-amber-500/30 text-2xl"><i class="fa-solid fa-road-barrier"></i></div>
         </div>
     </section>
 
-    <!-- Main Content -->
+    <!-- Main Workspace Content -->
     <main class="flex-1 flex gap-3 p-3 overflow-hidden relative">
         
-        <!-- Left Column: Incident Dispatch & Max-Heap Priority Queue -->
-        <aside class="w-[340px] flex flex-col gap-3 z-10 shrink-0">
-            <!-- Incident Reporting Card -->
-            <div class="glass-panel p-4 shadow-lg border-slate-800">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xs uppercase tracking-wider font-bold text-cyan-400 flex items-center">
-                        <i class="fa-solid fa-tower-broadcast mr-2 animate-pulse"></i> Report Incident
-                    </h2>
-                    <span class="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Live Intake</span>
-                </div>
+        <!-- Left Column: Priority Queue & Incident Intake -->
+        <aside id="left-sidebar" class="smooth-sidebar w-[330px] flex flex-col gap-3 z-10 shrink-0 h-full">
+            
+            <!-- Collapsible Incident Intake Accordion -->
+            <div class="card-surface overflow-hidden">
+                <button type="button" onclick="toggleReportAccordion()" class="w-full px-3.5 py-2.5 flex justify-between items-center text-left hover:bg-slate-50 transition border-b border-transparent" id="report-header">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-plus-circle text-blue-600 text-xs"></i>
+                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wide">Report New Incident</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="text-[10px] font-medium text-slate-400">Intake</span>
+                        <i id="report-chevron" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200"></i>
+                    </div>
+                </button>
 
-                <form id="emergency-form" onsubmit="submitEmergency(event)" class="space-y-2.5">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1">Target Location</label>
-                            <input list="locations-datalist" type="text" id="em-loc" placeholder="e.g. Jorhat" required 
-                                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none transition">
-                            <datalist id="locations-datalist"></datalist>
+                <!-- Collapsible Form Body -->
+                <div id="report-body" class="p-3.5 pt-1 space-y-2.5 border-t border-slate-100 hidden">
+                    <form id="emergency-form" onsubmit="submitEmergency(event)" class="space-y-2.5">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Target Location</label>
+                                <input list="locations-datalist" type="text" id="em-loc" placeholder="e.g. Jorhat" required 
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
+                                <datalist id="locations-datalist"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Hazard Type</label>
+                                <select id="em-haz" required class="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none transition cursor-pointer shadow-sm">
+                                    <option value="Flood">🌊 Flood</option>
+                                    <option value="Flash Flood">⚡ Flash Flood</option>
+                                    <option value="Landslide">⛰️ Landslide</option>
+                                    <option value="Cloudburst">🌧️ Cloudburst</option>
+                                    <option value="Cyclone">🌪️ Cyclone</option>
+                                    <option value="Storm Surge">🌊 Storm Surge</option>
+                                    <option value="Earthquake">🏚️ Earthquake</option>
+                                    <option value="Fire">🔥 Fire</option>
+                                    <option value="Chemical">☣️ Chemical</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1">Hazard Type</label>
-                            <select id="em-haz" required class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white focus:border-cyan-500 focus:outline-none transition cursor-pointer">
-                                <option value="Flood">🌊 Flood</option>
-                                <option value="Flash Flood">⚡ Flash Flood</option>
-                                <option value="Landslide">⛰️ Landslide</option>
-                                <option value="Cloudburst">🌧️ Cloudburst</option>
-                                <option value="Cyclone">🌪️ Cyclone</option>
-                                <option value="Storm Surge">🌊 Storm Surge</option>
-                                <option value="Earthquake">🏚️ Earthquake</option>
-                                <option value="Fire">🔥 Fire</option>
-                                <option value="Chemical">☣️ Chemical/Hazmat</option>
-                            </select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Affected People</label>
+                                <input type="number" id="em-aff" min="1" max="5000" placeholder="e.g. 150" required 
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Medical Urgent</label>
+                                <input type="number" id="em-med" min="0" max="5000" placeholder="e.g. 40" required 
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
+                            </div>
                         </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1">Affected Souls</label>
-                            <input type="number" id="em-aff" min="1" max="5000" placeholder="e.g. 150" required 
-                                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none transition">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1">Med. Urgent</label>
-                            <input type="number" id="em-med" min="0" max="5000" placeholder="e.g. 60" required 
-                                class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none transition">
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full mt-1 bg-red-950/70 hover:bg-red-900 border border-red-700/80 text-red-200 py-2 rounded text-xs font-bold tracking-wider uppercase transition shadow-lg shadow-red-950/30 flex items-center justify-center">
-                        <i class="fa-solid fa-satellite mr-1.5"></i> Insert into Priority Queue
-                    </button>
-                </form>
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-1.5 rounded-md text-xs font-semibold transition shadow-sm flex items-center justify-center">
+                            <i class="fa-solid fa-layer-group mr-1.5 text-xs text-slate-400"></i> Add to Priority Queue
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <!-- Priority Queue (Max Heap) -->
-            <div class="glass-panel p-4 flex-1 flex flex-col min-h-0 shadow-lg border-slate-800">
-                <div class="flex justify-between items-center mb-2.5 border-b border-slate-800 pb-2">
+            <div class="card-surface p-3.5 flex-1 flex flex-col min-h-0">
+                <div class="flex justify-between items-center mb-2.5 border-b border-slate-100 pb-2">
                     <div class="flex items-center space-x-2">
-                        <h2 class="text-xs uppercase tracking-wider font-bold text-red-400 flex items-center">
-                            <i class="fa-solid fa-layer-group mr-2"></i> Priority Queue
-                        </h2>
-                        <span class="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-red-950/80 border border-red-900 text-red-300">Max-Heap</span>
+                        <span class="text-xs uppercase tracking-wider font-bold text-slate-800 flex items-center">
+                            <i class="fa-solid fa-list-ol mr-1.5 text-blue-600"></i> Priority Queue
+                        </span>
+                        <span class="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">Max-Heap</span>
                     </div>
-                    <span id="queue-count" class="bg-red-900/80 text-red-200 font-mono text-xs px-2 py-0.5 rounded-full border border-red-700">0</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span id="queue-count" class="bg-rose-50 text-rose-700 font-mono text-xs font-bold px-2 py-0.5 rounded-full border border-rose-200">0</span>
+                        <button onclick="toggleSidebar('left')" title="Collapse Queue Panel" class="text-slate-400 hover:text-slate-700 p-1 transition rounded hover:bg-slate-100">
+                            <i class="fa-solid fa-angles-left text-[11px]"></i>
+                        </button>
+                    </div>
                 </div>
 
+                <!-- Scrollable Emergencies List -->
                 <div class="overflow-y-auto custom-scroll flex-1 pr-1 space-y-2" id="queue-list">
                     <!-- Dynamic Queue Cards -->
                 </div>
 
-                <!-- Dispatch Action & Auto-Dispatch Controls -->
-                <div class="pt-3 border-t border-slate-800/80 flex flex-col gap-2">
-                    <button onclick="processNext()" id="dispatch-btn" class="w-full bg-emerald-900/70 hover:bg-emerald-800 border border-emerald-600 text-emerald-100 py-2.5 rounded-lg text-xs font-bold tracking-widest uppercase transition flex justify-center items-center shadow-lg shadow-emerald-950/50 pulse-dispatch">
-                        <i class="fa-solid fa-bolt mr-2 text-emerald-300"></i> Dispatch Responders
+                <!-- Sticky Bottom Dispatch Actions -->
+                <div class="pt-3 border-t border-slate-100 flex flex-col gap-2 mt-auto">
+                    <button onclick="processNext()" id="dispatch-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-xs font-bold tracking-wide uppercase transition duration-150 flex justify-center items-center shadow-sm hover:shadow">
+                        <i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder
                     </button>
                     
-                    <div class="flex items-center justify-between px-1 text-[11px] text-slate-400">
+                    <div class="flex items-center justify-between px-1 text-[11px] text-slate-500">
                         <span class="flex items-center">
-                            <i class="fa-solid fa-robot mr-1.5 text-cyan-400"></i> Auto-Simulate:
+                            <i class="fa-solid fa-robot mr-1.5 text-blue-600"></i> Auto-Simulate:
                         </span>
-                        <button onclick="toggleAutoSimulate()" id="autosim-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1 rounded text-[11px] font-mono font-semibold transition flex items-center">
-                            <i class="fa-solid fa-play mr-1.5 text-xs text-emerald-400"></i> START
+                        <button onclick="toggleAutoSimulate()" id="autosim-btn" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm">
+                            <i class="fa-solid fa-play mr-1.5 text-[10px] text-emerald-600"></i> START
                         </button>
                     </div>
                 </div>
             </div>
         </aside>
 
-        <!-- Center Column: Tactical Network Visualization & GIS HUD -->
-        <section class="flex-1 glass-panel relative shadow-2xl overflow-hidden border border-slate-800 flex flex-col">
-            <!-- Map Top Overlay Header -->
+        <!-- Center Column: Interactive Graph Map & Controls -->
+        <section class="flex-1 card-surface relative overflow-hidden flex flex-col h-full">
+            
+            <!-- Map Top Clean Overlay Header -->
             <div class="absolute top-3 left-3 right-3 z-10 flex justify-between items-center pointer-events-none">
-                <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center shadow-lg">
-                    <i class="fa-solid fa-circle-nodes mr-2 text-cyan-400 animate-pulse"></i> Tactical Road Network Topology
-                    <span id="topology-info" class="ml-3 text-[10px] font-mono text-cyan-400 font-normal">--</span>
+                <div class="pointer-events-auto bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 flex items-center shadow-sm">
+                    <i class="fa-solid fa-circle-nodes mr-2 text-blue-600"></i>
+                    <span>Network Topology</span>
+                    <span id="topology-info" class="ml-2.5 text-[11px] font-mono text-slate-500 font-normal">--</span>
                 </div>
 
-                <div class="pointer-events-auto flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 text-[11px] text-slate-400 shadow-lg">
-                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block mr-1"></span> Clear Road</span>
-                    <span class="flex items-center ml-2"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block mr-1"></span> Blocked Road</span>
-                    <span class="flex items-center ml-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block mr-1"></span> Active Route</span>
+                <!-- Subtle Legend -->
+                <div class="pointer-events-auto flex items-center space-x-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-600 shadow-sm">
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block mr-1.5"></span> Road Clear</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block mr-1.5"></span> Blocked</span>
+                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block mr-1.5"></span> Active Route</span>
                 </div>
             </div>
+
+            <!-- Floating Sidebar Reopen Buttons (visible when sidebars are collapsed) -->
+            <button id="reopen-left-btn" onclick="toggleSidebar('left')" title="Open Priority Queue" class="hidden absolute top-14 left-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 text-slate-700 hover:text-blue-600 p-2 rounded-lg shadow-sm hover:shadow transition flex items-center text-xs space-x-1.5 font-medium">
+                <i class="fa-solid fa-bars-staggered"></i>
+                <span>Queue</span>
+            </button>
+            <button id="reopen-right-btn" onclick="toggleSidebar('right')" title="Open Fleet Panel" class="hidden absolute top-14 right-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 text-slate-700 hover:text-blue-600 p-2 rounded-lg shadow-sm hover:shadow transition flex items-center text-xs space-x-1.5 font-medium">
+                <span>Fleet</span>
+                <i class="fa-solid fa-boxes-stacked"></i>
+            </button>
 
             <!-- Vis.js Graph Canvas Container -->
             <div id="network" class="flex-1"></div>
 
-            <!-- Bottom Tactical Action Bar: Route Inspector & Road Blocker -->
-            <div class="bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-3 z-10 flex flex-wrap gap-3 items-center justify-between">
-                <!-- Route Finder (BFS & Dijkstra Shortest Path) -->
-                <div class="flex items-center space-x-2 flex-1 min-w-[320px]">
-                    <span class="text-[11px] font-bold uppercase tracking-wide text-cyan-400 flex items-center whitespace-nowrap">
-                        <i class="fa-solid fa-route mr-1.5"></i> Route Check:
+            <!-- Bottom Floating Dock: Route Inspector & Road Blocker -->
+            <div class="bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 z-10 flex flex-wrap gap-4 items-center justify-between text-xs">
+                <!-- Route Finder (Dijkstra Shortest Path) -->
+                <div class="flex items-center space-x-2 flex-1 min-w-[300px]">
+                    <span class="text-[11px] font-bold uppercase tracking-wide text-slate-600 flex items-center whitespace-nowrap">
+                        <i class="fa-solid fa-route mr-1.5 text-blue-600"></i> Route:
                     </span>
-                    <select id="route-from" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 max-w-[140px]"></select>
-                    <span class="text-slate-500 text-xs"><i class="fa-solid fa-arrow-right"></i></span>
-                    <select id="route-to" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 max-w-[140px]"></select>
-                    <button onclick="checkRoute()" class="bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-200 px-3 py-1 rounded text-xs font-semibold transition flex items-center shadow-sm">
-                        <i class="fa-solid fa-calculator mr-1.5"></i> Dijkstra Route
+                    <select id="route-from" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[130px] shadow-sm"></select>
+                    <span class="text-slate-400"><i class="fa-solid fa-arrow-right text-[10px]"></i></span>
+                    <select id="route-to" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[130px] shadow-sm"></select>
+                    <button onclick="checkRoute()" class="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded-md font-semibold transition flex items-center shadow-sm">
+                        Calculate
                     </button>
-                    <span id="route-result" class="text-xs font-mono font-bold text-slate-300 ml-2 truncate"></span>
+                    <span id="route-result" class="text-xs font-mono font-medium text-slate-700 ml-2 truncate"></span>
                 </div>
 
-                <!-- Road Toggle Form -->
+                <!-- Road Toggle Controls -->
                 <div class="flex items-center space-x-2">
-                    <span class="text-[11px] font-bold uppercase tracking-wide text-amber-400 flex items-center whitespace-nowrap">
-                        <i class="fa-solid fa-road-barrier mr-1.5"></i> Road Blockage:
+                    <span class="text-[11px] font-bold uppercase tracking-wide text-slate-600 flex items-center whitespace-nowrap">
+                        <i class="fa-solid fa-road-barrier mr-1.5 text-amber-500"></i> Road:
                     </span>
-                    <select id="block-from" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500 max-w-[110px]"></select>
-                    <span class="text-slate-500 text-xs"><i class="fa-solid fa-left-right"></i></span>
-                    <select id="block-to" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500 max-w-[110px]"></select>
-                    <button onclick="toggleRoadBlockage('block')" class="bg-red-950/70 hover:bg-red-900 border border-red-700 text-red-300 px-2.5 py-1 rounded text-xs font-semibold transition">
+                    <select id="block-from" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[110px] shadow-sm"></select>
+                    <span class="text-slate-400"><i class="fa-solid fa-arrows-left-right text-[10px]"></i></span>
+                    <select id="block-to" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[110px] shadow-sm"></select>
+                    <button onclick="toggleRoadBlockage('block')" class="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 px-2 py-1 rounded-md font-semibold transition">
                         Block
                     </button>
-                    <button onclick="toggleRoadBlockage('unblock')" class="bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 px-2.5 py-1 rounded text-xs font-semibold transition">
-                        Unblock
+                    <button onclick="toggleRoadBlockage('unblock')" class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-2 py-1 rounded-md font-semibold transition">
+                        Clear
                     </button>
                 </div>
             </div>
         </section>
 
         <!-- Right Column: Strategic Assets & Mission Log -->
-        <aside class="w-[320px] flex flex-col gap-3 z-10 shrink-0">
-            <div class="glass-panel p-3 flex-1 flex flex-col min-h-0 shadow-lg border-slate-800">
-                <!-- Navigation Tabs -->
-                <div class="flex border-b border-slate-800 pb-2 mb-3 space-x-1">
-                    <button onclick="switchTab('assets')" id="tab-btn-assets" class="flex-1 py-1.5 text-center text-xs font-bold tracking-wider uppercase rounded bg-cyan-950/80 border border-cyan-700/80 text-cyan-300 transition">
-                        <i class="fa-solid fa-shield-halved mr-1"></i> Fleet
-                    </button>
-                    <button onclick="switchTab('history')" id="tab-btn-history" class="flex-1 py-1.5 text-center text-xs font-bold tracking-wider uppercase rounded hover:bg-slate-800 text-slate-400 transition">
-                        <i class="fa-solid fa-clipboard-list mr-1"></i> Missions
-                    </button>
-                    <button onclick="switchTab('add')" id="tab-btn-add" class="py-1.5 px-3 text-center text-xs font-bold tracking-wider uppercase rounded hover:bg-slate-800 text-slate-400 transition" title="Add Resource">
-                        <i class="fa-solid fa-plus"></i>
+        <aside id="right-sidebar" class="smooth-sidebar w-[310px] flex flex-col gap-3 z-10 shrink-0 h-full">
+            <div class="card-surface p-3.5 flex-1 flex flex-col min-h-0">
+                
+                <!-- Clean Pill Tab Bar -->
+                <div class="flex items-center justify-between mb-3">
+                    <div class="bg-slate-100 p-1 rounded-lg flex space-x-1 flex-1 mr-2">
+                        <button onclick="switchTab('assets')" id="tab-btn-assets" class="flex-1 py-1 text-center text-xs font-semibold rounded-md bg-white text-slate-800 shadow-sm transition">
+                            Fleet & Shelters
+                        </button>
+                        <button onclick="switchTab('history')" id="tab-btn-history" class="flex-1 py-1 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition">
+                            Missions
+                        </button>
+                        <button onclick="switchTab('add')" id="tab-btn-add" class="py-1 px-2.5 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition" title="Add Resource">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                    <button onclick="toggleSidebar('right')" title="Collapse Fleet Panel" class="text-slate-400 hover:text-slate-700 p-1.5 transition rounded-lg hover:bg-slate-100">
+                        <i class="fa-solid fa-angles-right text-[11px]"></i>
                     </button>
                 </div>
 
                 <!-- Tab 1: Live Assets (Teams, Transports, Hospitals) -->
                 <div id="tab-content-assets" class="flex-1 overflow-y-auto custom-scroll space-y-3 pr-1">
                     <!-- Teams Section -->
-                    <div class="bg-slate-900/60 rounded-lg p-2.5 border border-slate-800">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-[11px] uppercase tracking-wider font-bold text-blue-400 flex items-center">
-                                <i class="fa-solid fa-users-gear mr-1.5"></i> Rescue Teams
-                            </h3>
-                            <span id="teams-count-badge" class="text-[10px] font-mono text-slate-400">0</span>
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
+                                <i class="fa-solid fa-users-gear mr-1.5 text-blue-600"></i> Rescue Teams
+                            </span>
+                            <span id="teams-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
                         </div>
                         <div id="teams-list" class="space-y-1.5"></div>
                     </div>
 
                     <!-- Transports Section -->
-                    <div class="bg-slate-900/60 rounded-lg p-2.5 border border-slate-800">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-[11px] uppercase tracking-wider font-bold text-purple-400 flex items-center">
-                                <i class="fa-solid fa-truck-field mr-1.5"></i> Transport Fleet
-                            </h3>
-                            <span id="transports-count-badge" class="text-[10px] font-mono text-slate-400">0</span>
+                    <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
+                                <i class="fa-solid fa-truck mr-1.5 text-indigo-600"></i> Transport Units
+                            </span>
+                            <span id="transports-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
                         </div>
                         <div id="transports-list" class="space-y-1.5"></div>
                     </div>
 
                     <!-- Destinations / Hospitals Section -->
-                    <div class="bg-slate-900/60 rounded-lg p-2.5 border border-slate-800">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-[11px] uppercase tracking-wider font-bold text-emerald-400 flex items-center">
-                                <i class="fa-solid fa-hospital mr-1.5"></i> Relief Hospitals
-                            </h3>
-                            <span id="destinations-count-badge" class="text-[10px] font-mono text-slate-400">0</span>
+                    <div class="space-y-1.5 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
+                                <i class="fa-solid fa-hospital mr-1.5 text-emerald-600"></i> Relief Hospitals
+                            </span>
+                            <span id="destinations-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
                         </div>
                         <div id="destinations-list" class="space-y-1.5"></div>
                     </div>
@@ -383,41 +479,41 @@
                 <div id="tab-content-history" class="hidden flex-1 overflow-y-auto custom-scroll space-y-2 pr-1">
                     <div class="flex justify-between items-center px-1 mb-1">
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mission Audit Trail</span>
-                        <span id="history-count-badge" class="text-[10px] font-mono text-cyan-400 font-bold">0 records</span>
+                        <span id="history-count-badge" class="text-[10px] font-mono text-blue-600 font-semibold">0 records</span>
                     </div>
                     <div id="history-list" class="space-y-2"></div>
                 </div>
 
                 <!-- Tab 3: Quick Add Asset Form -->
                 <div id="tab-content-add" class="hidden flex-1 overflow-y-auto custom-scroll space-y-3 pr-1 text-xs">
-                    <div class="bg-slate-900/60 rounded-lg p-3 border border-slate-800">
-                        <h4 class="font-bold text-cyan-400 mb-2 uppercase tracking-wide">Add Rescue Team</h4>
+                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
+                        <h4 class="font-bold text-slate-800 uppercase text-[11px] tracking-wide">Register Rescue Team</h4>
                         <form onsubmit="submitNewTeam(event)" class="space-y-2">
-                            <input type="text" id="add-team-name" placeholder="Team Name" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+                            <input type="text" id="add-team-name" placeholder="Team Name" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
                             <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="add-team-loc" placeholder="Base Location" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-                                <input type="number" id="add-team-cap" placeholder="Capacity" min="1" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+                                <input type="text" id="add-team-loc" placeholder="Base Location" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
+                                <input type="number" id="add-team-cap" placeholder="Capacity" min="1" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
                             </div>
-                            <div class="flex justify-between items-center text-[11px] text-slate-300">
-                                <label><input type="checkbox" id="add-team-med" class="mr-1"> Medical Kit</label>
-                                <label><input type="checkbox" id="add-team-boat" class="mr-1"> Rescue Boat</label>
+                            <div class="flex justify-between items-center text-[11px] text-slate-600 pt-0.5">
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-team-med" class="mr-1.5 rounded"> Medical Kit</label>
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-team-boat" class="mr-1.5 rounded"> Rescue Boat</label>
                             </div>
-                            <button type="submit" class="w-full bg-blue-900/60 hover:bg-blue-800 border border-blue-700 text-blue-200 py-1.5 rounded font-bold uppercase transition">Register Team</button>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded font-semibold transition shadow-sm">Save Team</button>
                         </form>
                     </div>
 
-                    <div class="bg-slate-900/60 rounded-lg p-3 border border-slate-800">
-                        <h4 class="font-bold text-teal-400 mb-2 uppercase tracking-wide">Add Hospital / Shelter</h4>
+                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
+                        <h4 class="font-bold text-slate-800 uppercase text-[11px] tracking-wide">Register Hospital / Shelter</h4>
                         <form onsubmit="submitNewDestination(event)" class="space-y-2">
-                            <input type="text" id="add-dest-name" placeholder="Hospital / Camp Name" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+                            <input type="text" id="add-dest-name" placeholder="Hospital / Camp Name" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
                             <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="add-dest-loc" placeholder="Location" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-                                <input type="number" id="add-dest-cap" placeholder="Capacity" min="1" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+                                <input type="text" id="add-dest-loc" placeholder="Location" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
+                                <input type="number" id="add-dest-cap" placeholder="Capacity" min="1" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
                             </div>
-                            <div class="text-[11px] text-slate-300">
-                                <label><input type="checkbox" id="add-dest-med" checked class="mr-1"> Trauma / Medical Support</label>
+                            <div class="text-[11px] text-slate-600 pt-0.5">
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-dest-med" checked class="mr-1.5 rounded"> Trauma / Medical Support</label>
                             </div>
-                            <button type="submit" class="w-full bg-teal-900/60 hover:bg-teal-800 border border-teal-700 text-teal-200 py-1.5 rounded font-bold uppercase transition">Register Hospital</button>
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded font-semibold transition shadow-sm">Save Facility</button>
                         </form>
                     </div>
                 </div>
@@ -426,22 +522,22 @@
     </main>
 
     <!-- Dispatch Result Confirmation Modal -->
-    <div id="dispatch-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden modal-enter">
-            <div id="modal-header" class="bg-emerald-950/80 border-b border-emerald-800/80 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-emerald-300 font-black tracking-wider uppercase flex items-center">
-                    <i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i> Dispatch Order Issued
+    <div id="dispatch-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden modal-enter">
+            <div id="modal-header" class="bg-emerald-50 border-b border-emerald-100 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-emerald-800 font-bold tracking-tight text-sm uppercase flex items-center">
+                    <i class="fa-solid fa-circle-check mr-2 text-emerald-600 text-base"></i> Dispatch Order Issued
                 </h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div id="modal-content" class="p-6 space-y-4 text-xs">
                 <!-- Injected via JavaScript -->
             </div>
-            <div class="px-6 py-3 bg-slate-800/60 border-t border-slate-700/80 flex justify-between items-center">
-                <button onclick="replayLastDispatchRoute()" class="text-cyan-400 hover:text-cyan-300 text-xs font-semibold flex items-center transition">
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                <button onclick="replayLastDispatchRoute()" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center transition">
                     <i class="fa-solid fa-eye mr-1.5"></i> Replay Route on Map
                 </button>
-                <button onclick="closeModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold transition shadow">
+                <button onclick="closeModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-sm">
                     Acknowledge
                 </button>
             </div>
@@ -449,42 +545,42 @@
     </div>
 
     <!-- Custom Scenario Import Modal -->
-    <div id="scenario-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[90vh]">
-            <div class="bg-cyan-950/80 border-b border-cyan-800/80 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-cyan-300 font-black tracking-wider uppercase flex items-center">
-                    <i class="fa-solid fa-file-code mr-2 text-cyan-400"></i> Import Custom Disaster Scenario
+    <div id="scenario-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[90vh]">
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-slate-800 font-bold tracking-tight text-sm uppercase flex items-center">
+                    <i class="fa-solid fa-file-code mr-2 text-blue-600"></i> Import Custom Disaster Scenario
                 </h3>
-                <button onclick="closeScenarioModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button onclick="closeScenarioModal()" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div class="p-6 space-y-3 flex-1 overflow-y-auto custom-scroll text-xs">
-                <p class="text-slate-300">
-                    Paste custom scenario configuration or upload a <code class="bg-slate-800 text-cyan-300 px-1.5 py-0.5 rounded">.txt</code> file. The engine parses sections: <span class="font-mono text-emerald-400">[LOCATIONS]</span>, <span class="font-mono text-emerald-400">[ROADS]</span>, <span class="font-mono text-emerald-400">[TEAMS]</span>, <span class="font-mono text-emerald-400">[TRANSPORT]</span>, <span class="font-mono text-emerald-400">[DESTINATIONS]</span>, and <span class="font-mono text-emerald-400">[EMERGENCIES]</span>.
+                <p class="text-slate-600">
+                    Paste custom scenario configuration or upload a <code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">.txt</code> file. The parser reads sections: <span class="font-mono text-blue-600">[LOCATIONS]</span>, <span class="font-mono text-blue-600">[ROADS]</span>, <span class="font-mono text-blue-600">[TEAMS]</span>, <span class="font-mono text-blue-600">[TRANSPORT]</span>, <span class="font-mono text-blue-600">[DESTINATIONS]</span>, and <span class="font-mono text-blue-600">[EMERGENCIES]</span>.
                 </p>
                 
                 <div class="flex items-center space-x-3">
-                    <input type="file" id="scenario-file-input" accept=".txt" onchange="handleScenarioFileUpload(event)" class="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-cyan-950 file:text-cyan-300 hover:file:bg-cyan-900 cursor-pointer">
-                    <button onclick="loadSampleTemplate()" class="text-cyan-400 hover:underline text-xs">Load Sample Template</button>
+                    <input type="file" id="scenario-file-input" accept=".txt" onchange="handleScenarioFileUpload(event)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                    <button onclick="loadSampleTemplate()" class="text-blue-600 hover:underline text-xs font-semibold">Load Sample Template</button>
                 </div>
 
-                <textarea id="scenario-text-content" rows="12" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none custom-scroll"></textarea>
+                <textarea id="scenario-text-content" rows="12" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none custom-scroll shadow-inner"></textarea>
             </div>
-            <div class="px-6 py-3 bg-slate-800/60 border-t border-slate-700/80 flex justify-end space-x-3">
-                <button onclick="closeScenarioModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded text-xs font-semibold transition">Cancel</button>
-                <button onclick="submitCustomScenario()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2 rounded text-xs font-bold transition shadow-lg shadow-cyan-900/30 flex items-center">
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-3">
+                <button onclick="closeScenarioModal()" class="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-semibold transition">Cancel</button>
+                <button onclick="submitCustomScenario()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-sm flex items-center">
                     <i class="fa-solid fa-upload mr-1.5"></i> Load Scenario
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Edge / Node Inspection Toast / Action Dialog -->
-    <div id="edge-dialog" class="fixed bottom-16 right-4 z-40 hidden bg-slate-900/95 border border-slate-700 rounded-xl p-4 shadow-2xl backdrop-blur-md max-w-sm text-xs modal-enter">
+    <!-- Edge / Node Inspection Dialog -->
+    <div id="edge-dialog" class="fixed bottom-14 right-6 z-40 hidden bg-white border border-slate-200 rounded-xl p-4 shadow-xl max-w-sm text-xs modal-enter">
         <div class="flex justify-between items-center mb-2">
-            <h4 id="edge-dialog-title" class="font-bold text-white uppercase tracking-wider">Road Segment</h4>
-            <button onclick="document.getElementById('edge-dialog').classList.add('hidden')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <h4 id="edge-dialog-title" class="font-bold text-slate-800 uppercase tracking-wide">Road Segment</h4>
+            <button onclick="document.getElementById('edge-dialog').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <p id="edge-dialog-desc" class="text-slate-300 mb-3"></p>
+        <p id="edge-dialog-desc" class="text-slate-600 mb-3"></p>
         <div id="edge-dialog-actions" class="flex space-x-2"></div>
     </div>
 
@@ -499,53 +595,54 @@
         let currentDestinations = [];
         let lastDispatchData = null;
         let autoSimulateTimer = null;
+        let isReportAccordionOpen = false;
 
-        // Initialize Vis Network with Tactical HUD Aesthetic
+        // Initialize Vis Network with Clean Light Modern Aesthetic
         function initNetwork() {
             const container = document.getElementById('network');
             const data = { nodes: nodes, edges: edges };
             const options = {
                 nodes: {
                     shape: 'dot',
-                    size: 18,
+                    size: 16,
                     font: {
-                        color: '#f1f5f9',
-                        face: 'Segoe UI, sans-serif',
-                        size: 13,
+                        color: '#0f172a',
+                        face: 'Inter, Segoe UI, sans-serif',
+                        size: 12,
                         bold: true,
                         strokeWidth: 3,
-                        strokeColor: '#050811'
+                        strokeColor: '#ffffff'
                     },
-                    borderWidth: 2,
-                    borderWidthSelected: 3,
-                    shadow: { enabled: true, color: 'rgba(0,0,0,0.6)', size: 8 }
+                    borderWidth: 2.5,
+                    borderWidthSelected: 3.5,
+                    shadow: { enabled: true, color: 'rgba(0,0,0,0.06)', size: 6, x: 1, y: 2 }
                 },
                 edges: {
-                    width: 2.5,
+                    width: 2.2,
                     font: {
                         align: 'top',
-                        color: '#94a3b8',
+                        color: '#64748b',
                         size: 11,
-                        face: 'monospace',
-                        strokeWidth: 2,
-                        strokeColor: '#070c18'
+                        face: 'JetBrains Mono, monospace',
+                        strokeWidth: 3,
+                        strokeColor: '#ffffff'
                     },
-                    smooth: { type: 'continuous', roundness: 0.2 },
-                    selectionWidth: 4
+                    smooth: { type: 'continuous', roundness: 0.15 },
+                    selectionWidth: 3.5
                 },
                 physics: {
                     solver: 'forceAtlas2Based',
                     forceAtlas2Based: {
-                        gravitationalConstant: -70,
+                        gravitationalConstant: -60,
                         centralGravity: 0.015,
                         springLength: 140,
-                        springConstant: 0.06
+                        springConstant: 0.05
                     },
                     stabilization: { iterations: 120 }
                 },
                 interaction: {
                     hover: true,
-                    tooltipDelay: 150,
+                    tooltipDelay: 120,
                     zoomView: true,
                     dragView: true
                 }
@@ -574,22 +671,22 @@
             const isBlocked = edgeObj.isBlocked === 1;
             const fromName = edgeObj.fromName || 'Node ' + edgeObj.from;
             const toName = edgeObj.toName || 'Node ' + edgeObj.to;
-            const dist = edgeObj.label || 'Unknown';
+            const dist = edgeObj.label ? edgeObj.label.replace('✖ ', '') : 'Unknown';
 
             document.getElementById('edge-dialog-title').innerHTML = 
-                `<i class="fa-solid fa-road mr-1 text-cyan-400"></i> ${fromName} &harr; ${toName}`;
+                `<i class="fa-solid fa-road mr-1.5 text-blue-600"></i> ${fromName} &harr; ${toName}`;
             document.getElementById('edge-dialog-desc').innerHTML = 
-                `Distance: <strong class="text-white">${dist} km</strong><br>Current Status: <span class="${isBlocked ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}">${isBlocked ? 'BLOCKED / FLOODED' : 'CLEAR & NAVIGABLE'}</span>`;
+                `Distance: <strong class="text-slate-800">${dist}</strong><br>Status: <span class="${isBlocked ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}">${isBlocked ? 'Blocked / Flooded' : 'Clear & Navigable'}</span>`;
 
             const actions = document.getElementById('edge-dialog-actions');
             if (isBlocked) {
                 actions.innerHTML = `
-                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'unblock')" class="flex-1 bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600 text-emerald-200 py-1.5 rounded font-bold transition">
-                        <i class="fa-solid fa-lock-open mr-1"></i> Unblock Road
+                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'unblock')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 py-1.5 rounded-md font-semibold transition">
+                        <i class="fa-solid fa-lock-open mr-1"></i> Clear Road
                     </button>`;
             } else {
                 actions.innerHTML = `
-                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'block')" class="flex-1 bg-red-900/80 hover:bg-red-800 border border-red-600 text-red-200 py-1.5 rounded font-bold transition">
+                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'block')" class="flex-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 py-1.5 rounded-md font-semibold transition">
                         <i class="fa-solid fa-triangle-exclamation mr-1"></i> Block Road
                     </button>`;
             }
@@ -605,9 +702,50 @@
                 body: `source=${u}&destination=${v}`
             })
             .then(r => r.json())
-            .then(d => {
+            .then(() => {
                 refreshAll();
             });
+        }
+
+        // Toggle Sidebar collapses for focus mode
+        function toggleSidebar(side) {
+            const el = document.getElementById(`${side}-sidebar`);
+            const btn = document.getElementById(`btn-toggle-${side}`);
+            const reopenBtn = document.getElementById(`reopen-${side}-btn`);
+            if (!el) return;
+
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                if (btn) {
+                    btn.classList.add('bg-slate-100', 'text-slate-600');
+                    btn.classList.remove('bg-blue-50', 'text-blue-600');
+                }
+                if (reopenBtn) reopenBtn.classList.add('hidden');
+            } else {
+                el.classList.add('hidden');
+                if (btn) {
+                    btn.classList.remove('bg-slate-100', 'text-slate-600');
+                    btn.classList.add('bg-blue-50', 'text-blue-600');
+                }
+                if (reopenBtn) reopenBtn.classList.remove('hidden');
+            }
+            if (network) {
+                setTimeout(() => network.fit(), 310);
+            }
+        }
+
+        // Toggle Accordion for Incident Intake
+        function toggleReportAccordion() {
+            const body = document.getElementById('report-body');
+            const chevron = document.getElementById('report-chevron');
+            isReportAccordionOpen = !isReportAccordionOpen;
+            if (isReportAccordionOpen) {
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
         }
 
         // Fetch All Tactical Data
@@ -624,7 +762,7 @@
                 fetchDestinations(),
                 fetchHistory()
             ]).finally(() => {
-                if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 400);
+                if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 350);
             });
         }
 
@@ -633,8 +771,8 @@
             return fetch('/api/metrics').then(r => r.json()).then(m => {
                 document.getElementById('metric-pending').innerText = m.pendingEmergencies || 0;
                 document.getElementById('metric-max-score').innerText = 'Max: ' + (m.maxPriorityScore ? m.maxPriorityScore.toFixed(1) : '0.0');
-                document.getElementById('metric-affected').innerText = m.totalAffected || 0;
-                document.getElementById('metric-medical').innerText = m.totalMedical || 0;
+                document.getElementById('metric-affected').innerText = (m.totalAffected || 0).toLocaleString();
+                document.getElementById('metric-medical').innerText = (m.totalMedical || 0).toLocaleString();
 
                 document.getElementById('metric-teams-avail').innerText = m.availableTeams || 0;
                 document.getElementById('metric-teams-total').innerText = m.totalTeams || 0;
@@ -642,14 +780,14 @@
                 document.getElementById('metric-transports-avail').innerText = m.availableTransports || 0;
                 document.getElementById('metric-transports-total').innerText = m.totalTransports || 0;
 
-                document.getElementById('metric-dest-occ').innerText = m.destinationsOccupancy || 0;
-                document.getElementById('metric-dest-cap').innerText = m.destinationsCapacity || 0;
+                document.getElementById('metric-dest-occ').innerText = (m.destinationsOccupancy || 0).toLocaleString();
+                document.getElementById('metric-dest-cap').innerText = (m.destinationsCapacity || 0).toLocaleString();
                 const pct = m.destinationsCapacity > 0 ? Math.round((m.destinationsOccupancy / m.destinationsCapacity) * 100) : 0;
                 document.getElementById('metric-dest-pct').innerText = pct + '%';
                 const bar = document.getElementById('metric-dest-bar');
                 if (bar) {
                     bar.style.width = Math.min(pct, 100) + '%';
-                    bar.className = pct > 85 ? 'bg-red-500 h-1.5 rounded-full' : (pct > 60 ? 'bg-amber-500 h-1.5 rounded-full' : 'bg-emerald-500 h-1.5 rounded-full');
+                    bar.className = pct > 85 ? 'bg-rose-500 h-1 rounded-full' : (pct > 60 ? 'bg-amber-500 h-1 rounded-full' : 'bg-emerald-500 h-1 rounded-full');
                 }
 
                 document.getElementById('metric-blocked-roads').innerText = m.blockedRoads || 0;
@@ -660,32 +798,32 @@
         function fetchGraph() {
             return fetch('/api/graph').then(r => r.json()).then(d => {
                 currentGraphData = d;
-                document.getElementById('topology-info').innerText = `${d.locations.length} Locations | ${d.edges.length} Routes`;
+                document.getElementById('topology-info').innerText = `${d.locations.length} Locations • ${d.edges.length} Routes`;
                 
-                // Update datalists and route dropdowns
                 populateLocationSelectors(d.locations);
 
-                // Build Vis nodes
+                // Build Vis nodes with clean modern palette
                 const nodeItems = d.locations.map(loc => {
                     const hasEm = currentEmergencies.some(e => e.location.toLowerCase() === loc.name.toLowerCase());
                     const hasHosp = currentDestinations.some(h => h.locationName.toLowerCase() === loc.name.toLowerCase());
                     const hasTeam = currentTeams.some(t => t.locationName.toLowerCase() === loc.name.toLowerCase() && t.available);
 
-                    let bgColor = '#0284c7'; // Default blue
-                    let borderColor = '#38bdf8';
-                    let size = 18;
+                    let bgColor = '#e2e8f0'; // Default clean slate
+                    let borderColor = '#94a3b8';
+                    let size = 16;
 
                     if (hasEm) {
-                        bgColor = '#ef4444'; // Red
-                        borderColor = '#fca5a5';
-                        size = 24;
+                        bgColor = '#f43f5e'; // Soft rose
+                        borderColor = '#e11d48';
+                        size = 22;
                     } else if (hasHosp) {
-                        bgColor = '#059669'; // Emerald
-                        borderColor = '#6ee7b7';
-                        size = 20;
+                        bgColor = '#10b981'; // Emerald
+                        borderColor = '#059669';
+                        size = 19;
                     } else if (hasTeam) {
                         bgColor = '#6366f1'; // Indigo
-                        borderColor = '#a5b4fc';
+                        borderColor = '#4f46e5';
+                        size = 17;
                     }
 
                     return {
@@ -694,14 +832,14 @@
                         color: {
                             background: bgColor,
                             border: borderColor,
-                            highlight: { background: '#38bdf8', border: '#ffffff' }
+                            highlight: { background: '#3b82f6', border: '#1d4ed8' }
                         },
                         size: size
                     };
                 });
 
-                // Build Vis edges
-                const edgeItems = (d.edges || []).map((e, idx) => {
+                // Build Vis edges with calm colors
+                const edgeItems = (d.edges || []).map((e) => {
                     const isBlocked = e.isBlocked === 1;
                     return {
                         id: `edge_${e.from}_${e.to}`,
@@ -711,9 +849,9 @@
                         isBlocked: e.isBlocked,
                         fromName: e.fromName,
                         toName: e.toName,
-                        color: isBlocked ? { color: '#ef4444', highlight: '#f87171' } : { color: '#334155', highlight: '#38bdf8' },
+                        color: isBlocked ? { color: '#f43f5e', highlight: '#e11d48' } : { color: '#cbd5e1', highlight: '#3b82f6' },
                         dashes: isBlocked ? [6, 6] : false,
-                        width: isBlocked ? 3.5 : 2
+                        width: isBlocked ? 3 : 2
                     };
                 });
 
@@ -757,10 +895,12 @@
 
                 if (currentEmergencies.length === 0) {
                     container.innerHTML = `
-                        <div class="text-center text-slate-500 py-8 italic flex flex-col items-center">
-                            <i class="fa-solid fa-circle-check text-emerald-500/40 text-3xl mb-2"></i>
-                            <span>All Sectors Clear</span>
-                            <span class="text-[10px] text-slate-600 mt-1">No active pending emergencies in Max-Heap</span>
+                        <div class="text-center text-slate-400 py-10 italic flex flex-col items-center">
+                            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                                <i class="fa-solid fa-check text-base"></i>
+                            </div>
+                            <span class="font-semibold text-slate-600 text-xs">All Sectors Stable</span>
+                            <span class="text-[11px] text-slate-400 mt-0.5">No active emergencies in Max-Heap</span>
                         </div>`;
                     return;
                 }
@@ -770,23 +910,23 @@
                     const isTop = idx === 0;
                     const hazardIcon = getHazardIcon(e.hazardType);
                     html += `
-                        <div class="p-3 rounded-lg border transition ${isTop ? 'bg-red-950/40 border-red-500/80 shadow-md shadow-red-950/30' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}">
+                        <div class="card-surface p-3 rounded-lg card-surface-hover ${isTop ? 'border-rose-300 bg-rose-50/40 ring-1 ring-rose-200' : 'bg-white'}">
                             <div class="flex justify-between items-start mb-1.5">
                                 <div class="flex items-center space-x-2">
-                                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isTop ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'}">
+                                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isTop ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600'}">
                                         #${idx + 1}
                                     </span>
-                                    <h4 class="font-bold text-white text-xs tracking-wide">${e.location}</h4>
+                                    <h4 class="font-bold text-slate-800 text-xs tracking-tight">${e.location}</h4>
                                 </div>
-                                <span class="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-slate-950 text-red-400 border border-slate-800">
-                                    PRIORITY: ${e.priorityScore.toFixed(2)}
+                                <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isTop ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-slate-100 text-slate-700'}">
+                                    Score: ${e.priorityScore.toFixed(2)}
                                 </span>
                             </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-400">
-                                <span class="text-orange-300 font-medium">${hazardIcon} ${e.hazardType}</span>
+                            <div class="flex items-center justify-between text-[11px] text-slate-500">
+                                <span class="font-medium text-slate-700">${hazardIcon} ${e.hazardType}</span>
                                 <div class="flex items-center space-x-2 font-mono text-[10px]">
-                                    <span title="Affected Souls" class="text-slate-300"><i class="fa-solid fa-person mr-1 text-slate-500"></i>${e.affectedPeople}</span>
-                                    <span title="Critical Medical Patients" class="text-pink-400"><i class="fa-solid fa-staff-snake mr-1"></i>${e.peopleNeedingMedical}</span>
+                                    <span title="Affected Souls" class="text-slate-600"><i class="fa-solid fa-person mr-0.5 text-slate-400"></i>${e.affectedPeople}</span>
+                                    <span title="Critical Medical Patients" class="text-rose-600 font-semibold"><i class="fa-solid fa-heart-pulse mr-0.5"></i>${e.peopleNeedingMedical}</span>
                                 </div>
                             </div>
                         </div>`;
@@ -811,46 +951,46 @@
         function fetchTeams() {
             return fetch('/api/teams').then(r => r.json()).then(d => {
                 currentTeams = d.teams || [];
-                document.getElementById('teams-count-badge').innerText = `${currentTeams.filter(t=>t.available).length}/${currentTeams.length}`;
+                document.getElementById('teams-count-badge').innerText = `${currentTeams.filter(t=>t.available).length}/${currentTeams.length} ready`;
                 const container = document.getElementById('teams-list');
                 container.innerHTML = currentTeams.map(t => `
-                    <div class="p-2 rounded bg-slate-850 border border-slate-800 flex justify-between items-center text-xs">
+                    <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-xs">
                         <div>
-                            <div class="font-bold text-slate-200 tracking-wide">${t.name}</div>
-                            <div class="text-[10px] text-slate-400 flex items-center space-x-2 mt-0.5">
-                                <span><i class="fa-solid fa-location-dot text-cyan-400 mr-1"></i>${t.locationName}</span>
+                            <div class="font-semibold text-slate-800 tracking-tight">${t.name}</div>
+                            <div class="text-[10px] text-slate-500 flex items-center space-x-2 mt-0.5">
+                                <span><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>${t.locationName}</span>
                                 <span>Cap: ${t.capacity}</span>
-                                ${t.medicalKit ? '<span class="text-pink-400 font-bold" title="Has Medical Kit">MED</span>' : ''}
-                                ${t.boatAvailable ? '<span class="text-cyan-400 font-bold" title="Has Boat">BOAT</span>' : ''}
+                                ${t.medicalKit ? '<span class="text-rose-600 font-semibold">MED</span>' : ''}
+                                ${t.boatAvailable ? '<span class="text-blue-600 font-semibold">BOAT</span>' : ''}
                             </div>
                         </div>
-                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-slate-900 text-slate-500 border border-slate-800'}">
+                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-500'}">
                             ${t.available ? 'STANDBY' : 'DEPLOYED'}
                         </span>
                     </div>
-                `).join('') || '<div class="text-slate-500 text-xs italic py-2">No teams registered</div>';
+                `).join('') || '<div class="text-slate-400 text-xs italic py-2">No teams registered</div>';
             });
         }
 
         function fetchTransports() {
             return fetch('/api/transport').then(r => r.json()).then(d => {
                 const transports = d.transports || [];
-                document.getElementById('transports-count-badge').innerText = `${transports.filter(t=>t.available).length}/${transports.length}`;
+                document.getElementById('transports-count-badge').innerText = `${transports.filter(t=>t.available).length}/${transports.length} ready`;
                 const container = document.getElementById('transports-list');
                 container.innerHTML = transports.map(t => `
-                    <div class="p-2 rounded bg-slate-850 border border-slate-800 flex justify-between items-center text-xs">
+                    <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-xs">
                         <div>
-                            <div class="font-bold text-slate-200">${t.type}</div>
-                            <div class="text-[10px] text-slate-400 flex items-center space-x-2 mt-0.5">
+                            <div class="font-semibold text-slate-800">${t.type}</div>
+                            <div class="text-[10px] text-slate-500 flex items-center space-x-2 mt-0.5">
                                 <span>Cap: ${t.capacity}</span>
-                                ${t.floodSuitable ? '<span class="text-cyan-400 font-bold">ALL-TERRAIN / AMPHIBIOUS</span>' : ''}
+                                ${t.floodSuitable ? '<span class="text-blue-600 font-semibold">All-Terrain</span>' : ''}
                             </div>
                         </div>
-                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-purple-950 text-purple-300 border border-purple-800' : 'bg-slate-900 text-slate-500 border border-slate-800'}">
+                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-200 text-slate-500'}">
                             ${t.available ? 'READY' : 'EN ROUTE'}
                         </span>
                     </div>
-                `).join('') || '<div class="text-slate-500 text-xs italic py-2">No transport vehicles</div>';
+                `).join('') || '<div class="text-slate-400 text-xs italic py-2">No transport vehicles</div>';
             });
         }
 
@@ -862,21 +1002,21 @@
                 container.innerHTML = currentDestinations.map(h => {
                     const pct = h.capacity > 0 ? Math.round((h.currentOccupancy / h.capacity) * 100) : 0;
                     return `
-                        <div class="p-2 rounded bg-slate-850 border border-slate-800 text-xs space-y-1">
+                        <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
                             <div class="flex justify-between items-start">
-                                <span class="font-bold text-slate-200 truncate max-w-[170px]" title="${h.name}">${h.name}</span>
-                                <span class="text-[10px] font-mono ${pct > 90 ? 'text-red-400' : 'text-emerald-400'}">${h.currentOccupancy}/${h.capacity}</span>
+                                <span class="font-semibold text-slate-800 truncate max-w-[170px]" title="${h.name}">${h.name}</span>
+                                <span class="text-[10px] font-mono ${pct > 90 ? 'text-rose-600 font-bold' : 'text-slate-600'}">${h.currentOccupancy}/${h.capacity}</span>
                             </div>
-                            <div class="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
-                                <div class="${pct > 90 ? 'bg-red-500' : (pct > 65 ? 'bg-amber-500' : 'bg-emerald-500')} h-1 rounded-full" style="width: ${Math.min(pct, 100)}%"></div>
+                            <div class="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                                <div class="${pct > 90 ? 'bg-rose-500' : (pct > 65 ? 'bg-amber-500' : 'bg-emerald-500')} h-1 rounded-full transition-all duration-300" style="width: ${Math.min(pct, 100)}%"></div>
                             </div>
-                            <div class="flex justify-between text-[10px] text-slate-400">
-                                <span><i class="fa-solid fa-location-dot text-cyan-400 mr-1"></i>${h.locationName}</span>
-                                ${h.medicalSupport ? '<span class="text-emerald-400 font-semibold">Trauma Center</span>' : '<span>Shelter Camp</span>'}
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>${h.locationName}</span>
+                                ${h.medicalSupport ? '<span class="text-emerald-700 font-medium">Trauma Center</span>' : '<span class="text-slate-500">Shelter Camp</span>'}
                             </div>
                         </div>
                     `;
-                }).join('') || '<div class="text-slate-500 text-xs italic py-2">No destinations registered</div>';
+                }).join('') || '<div class="text-slate-400 text-xs italic py-2">No destinations registered</div>';
             });
         }
 
@@ -887,24 +1027,24 @@
                 document.getElementById('history-count-badge').innerText = `${logs.length} logged`;
                 const container = document.getElementById('history-list');
                 if (logs.length === 0) {
-                    container.innerHTML = '<div class="text-center text-slate-500 py-6 italic text-xs">No rescue missions executed yet</div>';
+                    container.innerHTML = '<div class="text-center text-slate-400 py-6 italic text-xs">No rescue missions executed yet</div>';
                     return;
                 }
                 container.innerHTML = logs.map(m => `
-                    <div class="p-2.5 rounded bg-slate-900 border border-slate-800 text-xs space-y-1.5">
+                    <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1.5">
                         <div class="flex justify-between items-center text-[10px]">
-                            <span class="font-mono text-cyan-400 font-bold">#MISSION-${m.emergencyId}</span>
-                            <span class="text-slate-500 font-mono">${m.timestamp}</span>
+                            <span class="font-mono text-blue-600 font-bold">#MISSION-${m.emergencyId}</span>
+                            <span class="text-slate-400 font-mono">${m.timestamp}</span>
                         </div>
-                        <div class="font-bold text-white flex items-center">
-                            <span class="text-orange-400 mr-1.5">${getHazardIcon(m.hazard)}</span>
+                        <div class="font-semibold text-slate-800 flex items-center">
+                            <span class="mr-1.5">${getHazardIcon(m.hazard)}</span>
                             <span>${m.location}</span>
-                            <span class="text-[10px] text-slate-400 font-normal ml-2">(${m.affected} rescued)</span>
+                            <span class="text-[10px] text-slate-500 font-normal ml-2">(${m.affected} evacuated)</span>
                         </div>
-                        <div class="text-[10px] text-slate-400 space-y-0.5 border-t border-slate-800/80 pt-1">
-                            <div><i class="fa-solid fa-users text-blue-400 w-4"></i> Team: <strong class="text-slate-300">${m.team}</strong></div>
-                            <div><i class="fa-solid fa-hospital text-emerald-400 w-4"></i> Evac to: <strong class="text-slate-300">${m.destination}</strong></div>
-                            <div class="text-slate-500 font-mono">Transit: ${m.distToEmergency}km + ${m.distToDestination}km</div>
+                        <div class="text-[10px] text-slate-500 space-y-0.5 border-t border-slate-200/60 pt-1">
+                            <div><i class="fa-solid fa-users text-blue-600 w-4"></i> Team: <strong class="text-slate-700">${m.team}</strong></div>
+                            <div><i class="fa-solid fa-hospital text-emerald-600 w-4"></i> Destination: <strong class="text-slate-700">${m.destination}</strong></div>
+                            <div class="text-slate-400 font-mono">Distance: ${m.distToEmergency}km + ${m.distToDestination}km</div>
                         </div>
                     </div>
                 `).join('');
@@ -921,10 +1061,10 @@
             .then(r => r.json())
             .then(d => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-300"></i> Dispatch Responders';
+                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder';
 
                 if (d.error) {
-                    showModal('Dispatch Failed', `<div class="text-red-400 text-center py-4 text-sm font-semibold">${d.error}</div>`, true);
+                    showModal('Dispatch Failed', `<div class="text-rose-600 text-center py-4 text-sm font-semibold">${d.error}</div>`, true);
                 } else {
                     lastDispatchData = d;
                     displayDispatchResult(d);
@@ -934,66 +1074,66 @@
             })
             .catch(err => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-300"></i> Dispatch Responders';
-                showModal('System Error', `<div class="text-red-400 text-center py-4 text-sm">${err.message}</div>`, true);
+                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder';
+                showModal('System Error', `<div class="text-rose-600 text-center py-4 text-sm">${err.message}</div>`, true);
             });
         }
 
         function displayDispatchResult(d) {
             const html = `
-                <div class="space-y-3">
-                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
+                <div class="space-y-3.5">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center">
                         <div>
                             <span class="text-[10px] uppercase font-bold text-slate-400">Incident Target</span>
-                            <div class="text-base font-black text-white flex items-center">
-                                <span class="text-orange-400 mr-1.5">${getHazardIcon(d.hazard)}</span> ${d.location}
+                            <div class="text-base font-bold text-slate-900 flex items-center">
+                                <span class="mr-1.5">${getHazardIcon(d.hazard)}</span> ${d.location}
                             </div>
                         </div>
                         <div class="text-right">
-                            <span class="text-[10px] uppercase font-bold text-slate-400">Mission ID</span>
-                            <div class="text-sm font-mono font-bold text-cyan-400">#EM-${d.emergencyId}</div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400">Mission Ref</span>
+                            <div class="text-sm font-mono font-bold text-blue-600">#EM-${d.emergencyId}</div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-3 gap-2 text-center">
-                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Assigned Team</div>
-                            <div class="font-bold text-blue-400 mt-1">${d.team}</div>
-                            <div class="text-[9px] text-slate-500 font-mono">Base: ${d.teamBase}</div>
+                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Assigned Team</div>
+                            <div class="font-bold text-blue-600 mt-0.5">${d.team}</div>
+                            <div class="text-[9px] text-slate-400 font-mono">Base: ${d.teamBase}</div>
                         </div>
-                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Transport Unit</div>
-                            <div class="font-bold text-purple-400 mt-1">${d.transport}</div>
-                            <div class="text-[9px] text-slate-500 font-mono">Deployed</div>
+                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Transport Unit</div>
+                            <div class="font-bold text-indigo-600 mt-0.5">${d.transport}</div>
+                            <div class="text-[9px] text-slate-400 font-mono">En Route</div>
                         </div>
-                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Evac Destination</div>
-                            <div class="font-bold text-emerald-400 mt-1">${d.destination}</div>
-                            <div class="text-[9px] text-slate-500 font-mono">Occ: ${d.destOccupancy}/${d.destCapacity}</div>
+                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Evacuation Hub</div>
+                            <div class="font-bold text-emerald-600 mt-0.5">${d.destination}</div>
+                            <div class="text-[9px] text-slate-400 font-mono">Occ: ${d.destOccupancy}/${d.destCapacity}</div>
                         </div>
                     </div>
 
                     <!-- Turn-by-turn Route Information -->
-                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 flex items-center justify-between">
-                            <span><i class="fa-solid fa-route mr-1.5"></i> Leg 1: Team Base &rarr; Emergency</span>
-                            <span class="font-mono text-emerald-400">${d.routeToEmergency} km</span>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                            <span><i class="fa-solid fa-route mr-1.5 text-blue-600"></i> Leg 1: Team Base &rarr; Incident</span>
+                            <span class="font-mono text-blue-600 font-bold">${d.routeToEmergency} km</span>
                         </div>
-                        <div class="text-[11px] font-mono text-slate-300 bg-slate-900 px-2 py-1.5 rounded border border-slate-800 flex items-center flex-wrap gap-1">
+                        <div class="text-xs font-mono text-slate-700 bg-white px-2.5 py-1.5 rounded-md border border-slate-200 flex items-center flex-wrap gap-1">
                             ${(d.pathEmergency || []).map((step, idx) => `
-                                <span class="text-cyan-300 font-bold">${step}</span>
-                                ${idx < d.pathEmergency.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-600 text-[10px]"></i>' : ''}
+                                <span class="text-blue-700 font-bold">${step}</span>
+                                ${idx < d.pathEmergency.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-400 text-[10px]"></i>' : ''}
                             `).join('')}
                         </div>
 
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-teal-400 flex items-center justify-between pt-2 border-t border-slate-800">
-                            <span><i class="fa-solid fa-truck-medical mr-1.5"></i> Leg 2: Emergency &rarr; Hospital</span>
-                            <span class="font-mono text-emerald-400">${d.routeToDestination} km</span>
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between pt-2 border-t border-slate-200">
+                            <span><i class="fa-solid fa-truck-medical mr-1.5 text-emerald-600"></i> Leg 2: Incident &rarr; Hospital</span>
+                            <span class="font-mono text-emerald-600 font-bold">${d.routeToDestination} km</span>
                         </div>
-                        <div class="text-[11px] font-mono text-slate-300 bg-slate-900 px-2 py-1.5 rounded border border-slate-800 flex items-center flex-wrap gap-1">
+                        <div class="text-xs font-mono text-slate-700 bg-white px-2.5 py-1.5 rounded-md border border-slate-200 flex items-center flex-wrap gap-1">
                             ${(d.pathDestination || []).map((step, idx) => `
-                                <span class="text-emerald-300 font-bold">${step}</span>
-                                ${idx < d.pathDestination.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-600 text-[10px]"></i>' : ''}
+                                <span class="text-emerald-700 font-bold">${step}</span>
+                                ${idx < d.pathDestination.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-400 text-[10px]"></i>' : ''}
                             `).join('')}
                         </div>
                     </div>
@@ -1002,25 +1142,23 @@
             showModal('Dispatch Order Confirmed', html);
         }
 
-        // Animate / Highlight Dispatch Route on Vis.js Map
+        // Highlight Dispatch Route on Vis.js Map
         function highlightDispatchPath(d) {
             if (!d.pathEmergency && !d.pathDestination) return;
 
             const allSteps = [...(d.pathEmergency || []), ...(d.pathDestination || [])];
-            // Highlight nodes along the path
             const nodeUpdates = [];
             nodes.forEach(n => {
                 if (allSteps.includes(n.label)) {
                     nodeUpdates.push({
                         id: n.id,
-                        color: { background: '#10b981', border: '#34d399' },
-                        size: 26
+                        color: { background: '#2563eb', border: '#1d4ed8' },
+                        size: 24
                     });
                 }
             });
             nodes.update(nodeUpdates);
 
-            // Highlight edges along the path
             const edgeUpdates = [];
             edges.forEach(e => {
                 const uName = e.fromName;
@@ -1036,8 +1174,8 @@
                 if (onPath) {
                     edgeUpdates.push({
                         id: e.id,
-                        color: { color: '#10b981', highlight: '#34d399' },
-                        width: 5
+                        color: { color: '#2563eb', highlight: '#1d4ed8' },
+                        width: 4.5
                     });
                 }
             });
@@ -1046,7 +1184,7 @@
             // Focus on emergency node
             const emNode = nodes.get({ filter: item => item.label.toLowerCase() === d.location.toLowerCase() });
             if (emNode && emNode.length > 0) {
-                network.focus(emNode[0].id, { scale: 1.1, animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
+                network.focus(emNode[0].id, { scale: 1.1, animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
             }
         }
 
@@ -1068,15 +1206,14 @@
             .then(r => r.json())
             .then(d => {
                 if (d.error) {
-                    resEl.innerHTML = `<span class="text-red-400">${d.error}</span>`;
+                    resEl.innerHTML = `<span class="text-rose-600 font-semibold">${d.error}</span>`;
                     return;
                 }
                 if (!d.reachable || d.distance === -1) {
-                    resEl.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-ban mr-1"></i> Unreachable (Roads Blocked)</span>`;
+                    resEl.innerHTML = `<span class="text-rose-600 font-semibold"><i class="fa-solid fa-ban mr-1"></i> Unreachable (Blocked)</span>`;
                 } else {
-                    resEl.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> ${d.distance} km</span>: <span class="text-slate-300 font-mono text-[11px]">${(d.path||[]).join(' &rarr; ')}</span>`;
+                    resEl.innerHTML = `<span class="text-emerald-700 font-bold">${d.distance} km:</span> <span class="text-slate-600 font-mono text-[11px]">${(d.path||[]).join(' &rarr; ')}</span>`;
                     
-                    // Highlight on map
                     const pathNodes = d.path || [];
                     const edgeUpdates = [];
                     edges.forEach(e => {
@@ -1089,9 +1226,9 @@
                             }
                         }
                         if (onPath) {
-                            edgeUpdates.push({ id: e.id, color: { color: '#06b6d4', highlight: '#22d3ee' }, width: 4.5 });
+                            edgeUpdates.push({ id: e.id, color: { color: '#2563eb', highlight: '#1d4ed8' }, width: 4 });
                         } else {
-                            edgeUpdates.push({ id: e.id, color: e.isBlocked ? { color: '#ef4444' } : { color: '#334155' }, width: e.isBlocked ? 3.5 : 2 });
+                            edgeUpdates.push({ id: e.id, color: e.isBlocked ? { color: '#f43f5e' } : { color: '#cbd5e1' }, width: e.isBlocked ? 3 : 2 });
                         }
                     });
                     edges.update(edgeUpdates);
@@ -1112,13 +1249,12 @@
             if (autoSimulateTimer) {
                 clearInterval(autoSimulateTimer);
                 autoSimulateTimer = null;
-                btn.innerHTML = '<i class="fa-solid fa-play mr-1.5 text-xs text-emerald-400"></i> START';
-                btn.className = 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1 rounded text-[11px] font-mono font-semibold transition flex items-center';
+                btn.innerHTML = '<i class="fa-solid fa-play mr-1.5 text-[10px] text-emerald-600"></i> START';
+                btn.className = 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm';
             } else {
-                btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5 text-xs text-amber-400"></i> STOPPING...';
-                btn.className = 'bg-amber-950/70 border border-amber-600 text-amber-300 px-3 py-1 rounded text-[11px] font-mono font-semibold transition flex items-center animate-pulse';
+                btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5 text-[10px] text-amber-600"></i> PAUSE';
+                btn.className = 'bg-amber-50 border border-amber-300 text-amber-800 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm';
                 
-                // Immediately process one
                 processNext();
                 autoSimulateTimer = setInterval(() => {
                     if (currentEmergencies.length === 0) {
@@ -1127,7 +1263,6 @@
                     }
                     processNext();
                 }, 3000);
-                btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5 text-xs text-amber-400"></i> PAUSE';
             }
         }
 
@@ -1139,7 +1274,7 @@
                 body: `scenario=${name}`
             })
             .then(r => r.json())
-            .then(d => {
+            .then(() => {
                 refreshAll();
             });
         }
@@ -1149,7 +1284,7 @@
             if (!confirm("Reset all rescue teams and transport to Standby, and clear hospital occupancies?")) return;
             fetch('/api/reset', { method: 'POST' })
             .then(r => r.json())
-            .then(d => refreshAll());
+            .then(() => refreshAll());
         }
 
         // Submit New Incident
@@ -1173,7 +1308,7 @@
                 body: payload.toString()
             })
             .then(r => r.json())
-            .then(d => {
+            .then(() => {
                 document.getElementById('emergency-form').reset();
                 refreshAll();
             });
@@ -1236,10 +1371,7 @@
 
         function loadSampleTemplate() {
             const sample = `# ==============================================================================
-# INTELLIGENT DISASTER RESPONSE SYSTEM - COMPREHENSIVE MULTI-HAZARD SCENARIO
-# Description: Unified test environment covering ALL major natural and crisis
-#              disasters: Cyclones, Earthquakes, Flash Floods, Landslides,
-#              Wildfires, Tsunamis, and Hazmat/Chemical emergencies.
+# INTELLIGENT DISASTER RESPONSE SYSTEM - SCENARIO TEMPLATE
 # ==============================================================================
 
 [LOCATIONS]
@@ -1326,40 +1458,40 @@ North_Valley | Flood | 210 | 80
                 body: payload.toString()
             })
             .then(r => r.json())
-            .then(d => {
+            .then(() => {
                 closeScenarioModal();
                 refreshAll();
             });
         }
 
-        // Tab Switcher
+        // Tab Switcher with Clean Pills
         function switchTab(tab) {
             const tabs = ['assets', 'history', 'add'];
             tabs.forEach(t => {
                 const btn = document.getElementById(`tab-btn-${t}`);
                 const content = document.getElementById(`tab-content-${t}`);
                 if (t === tab) {
-                    btn.className = 'flex-1 py-1.5 text-center text-xs font-bold tracking-wider uppercase rounded bg-cyan-950/80 border border-cyan-700/80 text-cyan-300 transition';
+                    btn.className = 'flex-1 py-1 text-center text-xs font-semibold rounded-md bg-white text-slate-800 shadow-sm transition';
                     content.classList.remove('hidden');
                 } else {
-                    btn.className = 'flex-1 py-1.5 text-center text-xs font-bold tracking-wider uppercase rounded hover:bg-slate-800 text-slate-400 transition';
+                    btn.className = 'flex-1 py-1 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition';
                     content.classList.add('hidden');
                 }
             });
         }
 
-        // Modal Helpers
+        // Modal Helpers with Clean Light Styling
         function showModal(title, contentHtml, isError = false) {
             const m = document.getElementById('dispatch-modal');
             const h = document.getElementById('modal-header');
             if (isError) {
-                h.className = 'bg-red-950/90 border-b border-red-800 px-6 py-4 flex items-center justify-between';
-                h.innerHTML = `<h3 class="text-red-300 font-bold tracking-wide uppercase"><i class="fa-solid fa-triangle-exclamation mr-2 text-red-400"></i> ${title}</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>`;
+                h.className = 'bg-rose-50 border-b border-rose-100 px-6 py-4 flex items-center justify-between';
+                h.innerHTML = `<h3 class="text-rose-800 font-bold tracking-tight uppercase text-sm flex items-center"><i class="fa-solid fa-triangle-exclamation mr-2 text-rose-600"></i> ${title}</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>`;
             } else {
-                h.className = 'bg-emerald-950/90 border-b border-emerald-800 px-6 py-4 flex items-center justify-between';
-                h.innerHTML = `<h3 class="text-emerald-300 font-bold tracking-wide uppercase"><i class="fa-solid fa-satellite mr-2 text-emerald-400"></i> ${title}</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>`;
+                h.className = 'bg-emerald-50 border-b border-emerald-100 px-6 py-4 flex items-center justify-between';
+                h.innerHTML = `<h3 class="text-emerald-800 font-bold tracking-tight uppercase text-sm flex items-center"><i class="fa-solid fa-circle-check mr-2 text-emerald-600"></i> ${title}</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>`;
             }
             document.getElementById('modal-content').innerHTML = contentHtml;
             m.classList.remove('hidden');
@@ -1369,9 +1501,12 @@ North_Valley | Flood | 210 | 80
             document.getElementById('dispatch-modal').classList.add('hidden');
         }
 
-        // Bootstrap on Load
+        // Initialize on load
         window.addEventListener('DOMContentLoaded', () => {
             initNetwork();
+            // Start with intake accordion collapsed for a cleaner initial view
+            const reportBody = document.getElementById('report-body');
+            if (reportBody) reportBody.classList.add('hidden');
             refreshAll();
         });
     </script>
