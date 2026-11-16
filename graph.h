@@ -13,8 +13,10 @@
 
 /* ---------------------------------------------------------
    Location: a vertex in the disaster graph (city, hospital,
-   relief camp, etc). IDs are assigned automatically by
-   addLocation() starting at 0.
+   relief camp, etc). A location's id is always its index in
+   locations[] / graph[][] (0, 1, 2, ...). addLocation() assigns
+   the next free index when given -1, and rejects any other id
+   that does not equal that next index.
    --------------------------------------------------------- */
 typedef struct {
     int  id;
@@ -42,8 +44,8 @@ extern int parent[MAX_LOCATIONS];
    Setup
    --------------------------------------------------------- */
 void initializeGraph(void);
-int  addLocation(int id, const char *name);                 /* returns the new location's id, -1 if full */
-void addRoad(int source, int destination, int distance);
+int  addLocation(int id, const char *name);                 /* returns the new location's id, -1 if full or id is out of sequence */
+void addRoad(int source, int destination, int distance);    /* distance must be in 1..INF-1 */
 void loadAssamSampleData(void);                      /* preloads the sample flood scenario locations/roads */
 
 /* ---------------------------------------------------------
@@ -66,9 +68,9 @@ void dfsUtil(int node, int visitedArr[]);
    Shortest path
    --------------------------------------------------------- */
 void dijkstra(int source, int destination);           /* fills dist_[] and parent[], prints summary */
-int  getShortestDistance(int source, int destination); /* convenience: run dijkstra + return dist_[destination] */
-int  getShortestPath(int source, int destination, int pathBuffer[], int maxPathLen); /* returns length of path */
-void printRoute(int source, int destination);          /* reconstructs path from parent[] and prints it */
+int  getShortestDistance(int source, int destination); /* silent; returns INF if unreachable or ids invalid */
+int  getShortestPath(int source, int destination, int pathBuffer[], int maxPathLen); /* silent; returns length of path, 0 if none */
+void printRoute(int source, int destination);          /* reconstructs path from the last dijkstra() run and prints it */
 
 /* ---------------------------------------------------------
    Lookup helpers / display
@@ -78,4 +80,4 @@ const char *getLocationName(int id);
 void        printGraph(void);
 void        printLocations(void);
 
-// #endif /* GRAPH_H *//
+#endif /* GRAPH_H */
