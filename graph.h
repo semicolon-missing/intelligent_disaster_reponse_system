@@ -78,4 +78,4 @@ const char *getLocationName(int id);
 void        printGraph(void);
 void        printLocations(void);
 
-#endif /* GRAPH_H */
+// #endif /* GRAPH_H *//
