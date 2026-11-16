@@ -99,7 +99,9 @@ int loadAllData(MaxHeap* emergencyQueue) {
             strncpy(e.hazardType, (const char*)sqlite3_column_text(stmt, 2), 49); e.hazardType[49] = '\0';
             e.affectedPeople = sqlite3_column_int(stmt, 3);
             e.peopleNeedingMedical = sqlite3_column_int(stmt, 4);
-            e.priorityScore = sqlite3_column_double(stmt, 5);
+            /* Recompute instead of trusting the stored value, so rows saved under
+               older hazard weights are re-ranked with the current formula. */
+            e.priorityScore = calculatePriority(e);
             e.status = sqlite3_column_int(stmt, 6);
             
             // Insert directly to bypass status modification in insertEmergency
@@ -247,3 +249,4 @@ int dbResetResources(void) {
     }
     return 0;
 }
+v
