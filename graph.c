@@ -14,12 +14,21 @@ int      numLocations = 0;
 int dist_[MAX_LOCATIONS];
 int parent[MAX_LOCATIONS];
 
+/* Source used by the most recent Dijkstra run (-1 = none yet),
+   so printRoute() can tell whether parent[] matches its request. */
+static int lastDijkstraSource = -1;
+
+static int isValidId(int id) {
+    return id >= 0 && id < numLocations;
+}
+
 /* ---------------------------------------------------------
    Setup
    --------------------------------------------------------- */
 
 void initializeGraph(void) {
     numLocations = 0;
+    lastDijkstraSource = -1;
     for (int i = 0; i < MAX_LOCATIONS; i++) {
         locations[i].id = -1;
         locations[i].name[0] = '\0';
@@ -35,9 +44,19 @@ int addLocation(int id, const char *name) {
         printf("Error: Maximum number of locations reached.\n");
         return -1;
     }
-    // If id is -1, auto-assign for memory (though db should provide it)
+    if (name == NULL || name[0] == '\0') {
+        printf("Error: Location name cannot be empty.\n");
+        return -1;
+    }
+    /* The id doubles as the index into locations[] and graph[][], so it
+       must be the next free slot. -1 means "assign it for me". */
     if (id == -1) id = numLocations;
-    
+    if (id != numLocations) {
+        printf("Error: Location id %d for '%s' is out of sequence (expected %d).\n",
+               id, name, numLocations);
+        return -1;
+    }
+
     locations[numLocations].id = id;
     strncpy(locations[numLocations].name, name, MAX_NAME_LEN - 1);
     locations[numLocations].name[MAX_NAME_LEN - 1] = '\0';
@@ -46,9 +65,16 @@ int addLocation(int id, const char *name) {
 }
 
 void addRoad(int source, int destination, int distance) {
-    if (source < 0 || source >= numLocations ||
-        destination < 0 || destination >= numLocations) {
+    if (!isValidId(source) || !isValidId(destination)) {
         printf("Error: Invalid location id in addRoad().\n");
+        return;
+    }
+    if (source == destination) {
+        printf("Error: A road cannot connect a location to itself.\n");
+        return;
+    }
+    if (distance <= 0 || distance >= INF) {
+        printf("Error: Road distance must be between 1 and %d.\n", INF - 1);
         return;
     }
     graph[source][destination] = distance;
@@ -84,13 +110,17 @@ void loadAssamSampleData(void) {
    --------------------------------------------------------- */
 
 void blockRoad(int source, int destination) {
-    if (source < 0 || source >= numLocations ||
-        destination < 0 || destination >= numLocations) {
+    if (!isValidId(source) || !isValidId(destination) || source == destination) {
         printf("Error: Invalid location id in blockRoad().\n");
         return;
     }
-    if (graph[source][destination] == INF) {
+    if (originalGraph[source][destination] == INF) {
         printf("No direct road exists between %s and %s.\n",
+               getLocationName(source), getLocationName(destination));
+        return;
+    }
+    if (graph[source][destination] == INF) {
+        printf("Road between %s and %s is already blocked.\n",
                getLocationName(source), getLocationName(destination));
         return;
     }
@@ -101,13 +131,17 @@ void blockRoad(int source, int destination) {
 }
 
 void unblockRoad(int source, int destination) {
-    if (source < 0 || source >= numLocations ||
-        destination < 0 || destination >= numLocations) {
+    if (!isValidId(source) || !isValidId(destination) || source == destination) {
         printf("Error: Invalid location id in unblockRoad().\n");
         return;
     }
     if (originalGraph[source][destination] == INF) {
         printf("No road ever existed between %s and %s.\n",
+               getLocationName(source), getLocationName(destination));
+        return;
+    }
+    if (graph[source][destination] != INF) {
+        printf("Road between %s and %s is not blocked.\n",
                getLocationName(source), getLocationName(destination));
         return;
     }
@@ -118,8 +152,7 @@ void unblockRoad(int source, int destination) {
 }
 
 int isRoadBlocked(int source, int destination) {
-    if (source < 0 || source >= numLocations ||
-        destination < 0 || destination >= numLocations) {
+    if (!isValidId(source) || !isValidId(destination)) {
         return -1; /* invalid */
     }
     /* "blocked" = a road exists in original data but is currently INF */
@@ -218,13 +251,9 @@ void dfs(int start) {
    Dijkstra — shortest route, O(V^2) with adjacency matrix
    --------------------------------------------------------- */
 
-void dijkstra(int source, int destination) {
-    if (source < 0 || source >= numLocations ||
-        destination < 0 || destination >= numLocations) {
-        printf("Error: Invalid location id in dijkstra().\n");
-        return;
-    }
-
+/* Core Dijkstra: fills dist_[] and parent[] from source, prints nothing.
+   Caller must have validated source. */
+static void computeDijkstra(int source) {
     int visitedArr[MAX_LOCATIONS] = {0};
 
     for (int i = 0; i < numLocations; i++) {
@@ -232,12 +261,13 @@ void dijkstra(int source, int destination) {
         parent[i] = -1;
     }
     dist_[source] = 0;
+    lastDijkstraSource = source;
 
-    for (int count = 0; count < numLocations - 1; count++) {
+    for (int count = 0; count < numLocations; count++) {
         /* pick the unvisited vertex with the smallest known distance */
         int minDist = INF, u = -1;
         for (int v = 0; v < numLocations; v++) {
-            if (!visitedArr[v] && dist_[v] <= minDist) {
+            if (!visitedArr[v] && dist_[v] < minDist) {
                 minDist = dist_[v];
                 u = v;
             }
@@ -248,12 +278,21 @@ void dijkstra(int source, int destination) {
 
         for (int v = 0; v < numLocations; v++) {
             if (!visitedArr[v] && graph[u][v] != INF &&
-                dist_[u] != INF && dist_[u] + graph[u][v] < dist_[v]) {
+                dist_[u] + graph[u][v] < dist_[v]) {
                 dist_[v]  = dist_[u] + graph[u][v];
                 parent[v] = u;
             }
         }
     }
+}
+
+void dijkstra(int source, int destination) {
+    if (!isValidId(source) || !isValidId(destination)) {
+        printf("Error: Invalid location id in dijkstra().\n");
+        return;
+    }
+
+    computeDijkstra(source);
 
     if (dist_[destination] == INF) {
         printf("No route available: %s is unreachable from %s.\n",
@@ -267,13 +306,18 @@ void dijkstra(int source, int destination) {
 }
 
 int getShortestDistance(int source, int destination) {
-    dijkstra(source, destination);
+    if (!isValidId(source) || !isValidId(destination)) return INF;
+    computeDijkstra(source);
     return dist_[destination];
 }
 
 int getShortestPath(int source, int destination, int pathBuffer[], int maxPathLen) {
-    dijkstra(source, destination);
-    if (dist_[destination] == INF || source < 0 || destination < 0 || source >= numLocations || destination >= numLocations) {
+    if (!isValidId(source) || !isValidId(destination) ||
+        pathBuffer == NULL || maxPathLen <= 0) {
+        return 0;
+    }
+    computeDijkstra(source);
+    if (dist_[destination] == INF) {
         return 0;
     }
     int temp[MAX_LOCATIONS];
@@ -292,6 +336,14 @@ int getShortestPath(int source, int destination, int pathBuffer[], int maxPathLe
 }
 
 void printRoute(int source, int destination) {
+    if (!isValidId(source) || !isValidId(destination)) {
+        printf("Error: Invalid location id in printRoute().\n");
+        return;
+    }
+    /* parent[] only describes routes from the last Dijkstra source */
+    if (lastDijkstraSource != source) {
+        computeDijkstra(source);
+    }
     if (dist_[destination] == INF) {
         printf("No route to display.\n");
         return;
@@ -301,7 +353,7 @@ void printRoute(int source, int destination) {
     int count = 0;
     int current = destination;
 
-    while (current != -1) {
+    while (current != -1 && count < MAX_LOCATIONS) {
         path[count++] = current;
         if (current == source) break;
         current = parent[current];
@@ -320,6 +372,7 @@ void printRoute(int source, int destination) {
    --------------------------------------------------------- */
 
 int getLocationId(const char *name) {
+    if (name == NULL) return -1;
     for (int i = 0; i < numLocations; i++) {
         if (strcmp(locations[i].name, name) == 0) return i;
     }
@@ -339,16 +392,23 @@ void printLocations(void) {
 }
 
 void printGraph(void) {
+    /* column width = longest name + 2, so long names stay aligned */
+    int w = 6;
+    for (int i = 0; i < numLocations; i++) {
+        int len = (int)strlen(locations[i].name) + 2;
+        if (len > w) w = len;
+    }
+
     printf("---- Road Network (adjacency matrix, INF = no road) ----\n");
-    printf("%12s", "");
-    for (int j = 0; j < numLocations; j++) printf("%12s", locations[j].name);
+    printf("%*s", w, "");
+    for (int j = 0; j < numLocations; j++) printf("%*s", w, locations[j].name);
     printf("\n");
 
     for (int i = 0; i < numLocations; i++) {
-        printf("%12s", locations[i].name);
+        printf("%*s", w, locations[i].name);
         for (int j = 0; j < numLocations; j++) {
-            if (graph[i][j] == INF) printf("%12s", "INF");
-            else printf("%12d", graph[i][j]);
+            if (graph[i][j] == INF) printf("%*s", w, "INF");
+            else printf("%*d", w, graph[i][j]);
         }
         printf("\n");
     }
@@ -387,8 +447,22 @@ int main(void) {
     dijkstra(guwahati, jorhat); /* back to the direct route */
 
     printf("\n-- Unreachable location test --\n");
-    printf("Dibrugarh reachable from Guwahati? %s\n",
+    int tezpur = getLocationId("Tezpur");
+    blockRoad(tezpur, dibrugarh);
+    blockRoad(jorhat, dibrugarh);   /* cuts Dibrugarh off completely */
+    printf("Dibrugarh reachable from Guwahati? %s (expected NO)\n",
            isReachable(guwahati, dibrugarh) ? "YES" : "NO");
+    dijkstra(guwahati, dibrugarh);
+    printf("getShortestDistance = %d (expected INF=%d)\n",
+           getShortestDistance(guwahati, dibrugarh), INF);
+
+    printf("\n-- Input validation tests --\n");
+    printf("getShortestDistance(-1, 0) = %d (expected %d)\n",
+           getShortestDistance(-1, 0), INF);
+    addRoad(guwahati, guwahati, 5);     /* rejected: self loop */
+    addRoad(guwahati, jorhat, -3);      /* rejected: negative  */
+    addLocation(99, "Gap");             /* rejected: out of sequence */
+    blockRoad(tezpur, dibrugarh);       /* already blocked */
 
     return 0;
 }
