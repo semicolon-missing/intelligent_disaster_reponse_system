@@ -119,7 +119,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
     }
 
     // Combine query and body for parameter searching
-    static char combinedParams[32768];
+    static char combinedParams[131072];   /* holds the URL-encoded body; big enough for a max-size scenario import */
     memset(combinedParams, 0, sizeof(combinedParams));
     if (query[0]) {
         snprintf(combinedParams, sizeof(combinedParams), "%s&%s", query, body ? body : "");
@@ -234,13 +234,13 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 
         if (!t) {
             insertEmergency(&emergencyQueue, e);
-            snprintf(res, resSize, "{\"error\":\"No reachable/available rescue team for %s (check road blockages)\"}", e.location);
+            snprintf(res, resSize, "{\"error\":\"No available rescue team for %s: none is reachable with the required gear (boat for floods/tsunamis, medical kit when 40%%+ need care)\"}", e.location);
             return;
         }
 
         if (!d) {
             insertEmergency(&emergencyQueue, e);
-            snprintf(res, resSize, "{\"error\":\"No reachable destination/hospital with capacity for %s\"}", e.location);
+            snprintf(res, resSize, "{\"error\":\"No reachable hospital/shelter with enough free beds for all %d people at %s\"}", e.affectedPeople, e.location);
             return;
         }
 
@@ -543,7 +543,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
     // 19. POST /api/scenario or /api/demo
     else if ((strcmp(path, "/api/scenario") == 0 || strcmp(path, "/api/demo") == 0) && strcmp(method, "POST") == 0) {
         char name[50] = {0};
-        static char rawText[16384];
+        static char rawText[65536];
         memset(rawText, 0, sizeof(rawText));
         get_param(combinedParams, "scenario", name, sizeof(name));
         get_param(combinedParams, "content", rawText, sizeof(rawText));
@@ -585,7 +585,9 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
     }
 }
 
-int main() {
+int main(int argc, char **argv) {
+    int port = (argc > 1) ? atoi(argv[1]) : 8080;   /* optional: ./web <port> */
+    if (port <= 0 || port > 65535) port = 8080;
     if (initDB("disaster_v2.db") != 0) {
         printf("Failed to initialize database.\n");
         return 1;
@@ -602,7 +604,7 @@ int main() {
         printf("Loaded existing scenario from database with %d locations.\n", numLocations);
     }
     
-    startHttpServer(8080, apiHandler);
+    startHttpServer(port, apiHandler);
     
     closeDB();
     return 0;

@@ -1,1514 +1,770 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacNet IDRS - Intelligent Disaster Response Command Center</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'Consolas', 'Menlo', 'monospace']
-                    }
-                }
-            }
-        };
-    </script>
-    <style>
-        body {
-            background-color: #f8fafc;
-            color: #1e293b;
-            font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-        .card-surface {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-            border-radius: 0.75rem;
-        }
-        .card-surface-hover {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .card-surface-hover:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
-        }
-        .custom-scroll::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 8px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        #network {
-            height: 100%;
-            width: 100%;
-            border-radius: 0.75rem;
-            outline: none;
-            background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%);
-        }
-        .modal-enter {
-            animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.97) translateY(8px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .smooth-sidebar {
-            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDRS Command Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+:root {
+  --bg: #e6e9eb;
+  --paper: #f7f8f8;
+  --panel: #ffffff;
+  --ink: #1d272c;
+  --ink-2: #4c5961;
+  --muted: #86929a;
+  --line: #cfd5d8;
+  --line-2: #e2e6e8;
+  --teal: #0e6a72;
+  --teal-2: #3f9aa1;
+  --teal-soft: #cfe7e8;
+  --teal-wash: #eaf4f4;
+  --rust: #b0533c;
+  --rust-wash: #f6e9e5;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* --- labels & primitives --- */
+.label { font: 500 10.5px/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--mono); }
+.tag { display: inline-block; font: 500 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink-2); background: var(--panel); white-space: nowrap; }
+.tag.solid { background: var(--teal-2); border-color: var(--teal-2); color: #fff; }
+.tag.alert { background: var(--rust-wash); border-color: #e3c3b9; color: var(--rust); }
+.hatch { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(29,39,44,.07) 5px 6px); }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 7px 14px; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; color: var(--ink-2); }
+.btn:hover { border-color: var(--teal-2); color: var(--teal); }
+.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; padding: 10px 20px; font-family: var(--sans); font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.btn.primary:hover { background: #0b5960; color: #fff; }
+.btn.on { background: var(--teal-wash); border-color: var(--teal-2); color: var(--teal); }
+.btn:disabled { opacity: .55; cursor: default; }
+.field { border: 1px solid var(--line); background: var(--panel); border-radius: 3px; padding: 6px 8px; font: 12px var(--mono); min-width: 0; }
+.field:focus, .btn:focus-visible { outline: 2px solid var(--teal-soft); outline-offset: 1px; border-color: var(--teal-2); }
+
+/* --- shell --- */
+.topbar { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--paper); font: 11px var(--mono); color: var(--muted); letter-spacing: .06em; position: sticky; top: 0; z-index: 5; }
+.topbar .crumbs { background: var(--bg); border-radius: 999px; padding: 4px 14px; }
+.topbar .right { display: flex; gap: 18px; text-transform: uppercase; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal-2); margin-right: 6px; vertical-align: 1px; }
+.dot.off { background: var(--rust); }
+.shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 40px); }
+aside { border-right: 1px solid var(--line); padding: 22px 0 18px; display: flex; flex-direction: column; position: sticky; top: 40px; height: calc(100vh - 40px); background: var(--bg); }
+.brand { padding: 0 20px 18px; }
+.brand h1 { margin: 0; font: 600 15px/1.2 var(--mono); letter-spacing: .06em; }
+.brand p { margin: 3px 0 0; }
+nav .label { padding: 0 20px 10px; display: block; border-top: 1px solid var(--line); padding-top: 14px; }
+nav a { display: flex; gap: 12px; padding: 10px 20px; margin: 2px 10px; border-radius: 3px; text-decoration: none; color: var(--ink); font: 500 11.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+nav a span { color: var(--muted); }
+nav a:hover { background: var(--line-2); }
+nav a.active { background: var(--teal); color: #fff; }
+nav a.active span { color: var(--teal-soft); }
+.side-foot { margin-top: auto; padding: 14px 20px 0; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.side-foot select { width: 100%; }
+.side-foot .row { display: flex; gap: 6px; }
+.side-foot .row .btn { flex: 1; padding: 7px 6px; }
+
+main { padding: 20px 24px 60px; display: grid; gap: 14px; align-content: start; max-width: 1180px; width: 100%; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-top: 2px; }
+.head h2 { margin: 4px 0 0; font: 500 21px/1.2 var(--sans); }
+.head .tags { display: flex; gap: 6px; }
+
+section.card { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; scroll-margin-top: 56px; }
+.card-h { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line-2); gap: 10px; }
+.card-h h3 { margin: 0; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.card-h h3 span { color: var(--muted); font-weight: 400; margin-right: 10px; }
+.card-b { padding: 14px; }
+
+/* stats strip */
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); }
+.stat { padding: 12px 14px; border-right: 1px solid var(--line-2); }
+.stat:last-child { border-right: 0; }
+.stat .v { font: 500 22px/1.15 var(--mono); margin-top: 6px; letter-spacing: -.01em; }
+.stat .v small { font-size: 12px; color: var(--muted); }
+.stat .sub { font: 10.5px var(--mono); color: var(--muted); margin-top: 3px; }
+.meter { height: 3px; background: var(--line-2); margin-top: 7px; }
+.meter i { display: block; height: 100%; background: var(--teal-2); }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 0 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line-2); font-size: 13px; vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-size: 12px; }
+tr.top td { background: var(--teal-wash); }
+tr.top td:first-child { box-shadow: inset 3px 0 0 var(--teal); }
+.score { display: inline-flex; align-items: center; gap: 8px; font: 500 12px var(--mono); }
+.score i { display: inline-block; width: 46px; height: 4px; background: var(--line-2); position: relative; }
+.score i b { position: absolute; inset: 0 auto 0 0; background: var(--teal-2); }
+.empty { padding: 22px; text-align: center; font: 11px var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; border: 1px dashed var(--line); border-radius: 3px; }
+.gear { font: 500 9.5px var(--mono); letter-spacing: .08em; color: var(--teal); border: 1px solid var(--teal-soft); padding: 2px 5px; border-radius: 2px; margin-right: 3px; }
+.state { font: 500 10px var(--mono); letter-spacing: .1em; color: var(--teal); }
+.state.busy { color: var(--muted); }
+
+/* queue actions */
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-top: 1px solid var(--line-2); }
+.actions .spacer { flex: 1; }
+form.intake { display: none; grid-template-columns: 1.4fr 1fr .7fr .7fr auto; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line-2); background: var(--panel); }
+form.intake.open { display: grid; }
+
+/* dispatch result */
+.result { display: none; border-top: 1px solid var(--line-2); padding: 14px; background: var(--panel); }
+.result.show { display: block; }
+.result.err { background: var(--rust-wash); color: var(--rust); font: 12px var(--mono); }
+.result .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+.result .big { font: 500 17px/1.25 var(--mono); margin-top: 6px; }
+.result .small { font: 11px var(--mono); color: var(--muted); margin-top: 3px; }
+.legs { margin-top: 14px; display: grid; gap: 8px; }
+.leg { display: grid; grid-template-columns: 150px 1fr 60px; gap: 10px; align-items: center; font: 12px var(--mono); }
+.leg .path { padding: 7px 10px; border: 1px dashed var(--line); border-radius: 3px; color: var(--ink-2); overflow-wrap: anywhere; }
+.leg .km { text-align: right; color: var(--teal); font-weight: 600; }
+
+/* map */
+#network { height: 420px; background-color: var(--panel); }
+.map-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line-2); font: 12px var(--mono); }
+.map-ctl .out { color: var(--ink-2); flex: 1; min-width: 200px; }
+.legend { display: flex; gap: 14px; font: 10px var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.edgebar { display: none; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line-2); font: 12px var(--mono); background: var(--panel); flex-wrap: wrap; }
+.edgebar.show { display: flex; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; }
+.tabs button { border: 0; background: none; padding: 5px 10px; border-radius: 3px; font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.tabs button.active { background: var(--ink); color: #fff; }
+
+dialog { border: 1px solid var(--line); border-radius: 4px; padding: 0; width: min(560px, 92vw); background: var(--paper); color: var(--ink); }
+dialog::backdrop { background: rgba(29,39,44,.35); }
+.drop { margin: 14px; border: 1.5px dashed var(--line); border-radius: 4px; padding: 26px 16px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.drop.over { border-color: var(--teal-2); background-color: var(--teal-wash); }
+.drop .file { font: 500 12px var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.preview { margin: 0 14px 14px; display: none; }
+.preview.show { display: block; }
+.counts { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border: 1px solid var(--line-2); border-radius: 3px; background: var(--panel); }
+.counts div { padding: 8px 10px; border-right: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+.counts div:nth-child(3n) { border-right: 0; }
+.counts div:nth-last-child(-n+3) { border-bottom: 0; }
+.counts b { display: block; font: 500 16px var(--mono); margin-top: 3px; }
+.issues { margin: 10px 0 0; padding: 0; list-style: none; font: 11.5px/1.5 var(--mono); max-height: 130px; overflow: auto; }
+.issues li { padding: 3px 0 3px 10px; border-left: 2px solid var(--line); color: var(--ink-2); margin-bottom: 3px; }
+.issues li.err { border-color: var(--rust); color: var(--rust); }
+.pane { display: none; }
+.pane.show { display: block; }
+dialog textarea { width: 100%; height: 260px; border: 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); padding: 12px 14px; font: 12px/1.5 var(--mono); resize: vertical; background: var(--panel); display: block; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding-top: 14px; }
+  nav { display: flex; overflow-x: auto; padding: 0 6px; }
+  nav .label { display: none; }
+  nav a { margin: 0 4px 10px; white-space: nowrap; padding: 8px 12px; }
+  .side-foot { margin-top: 0; padding-top: 12px; }
+  main { padding: 14px 16px 40px; }
+  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .stat { border-bottom: 1px solid var(--line-2); }
+  form.intake { grid-template-columns: 1fr 1fr; }
+  .result .grid { grid-template-columns: 1fr; }
+  .leg { grid-template-columns: 1fr 50px; }
+  .leg .label { grid-column: 1 / -1; }
+  .topbar .crumbs { display: none; }
+  .scroll-x { overflow-x: auto; }
+}
+</style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden bg-slate-50 text-slate-800 select-none">
+<body>
 
-    <!-- Top Navigation Bar -->
-    <header class="card-surface mx-3 mt-2.5 px-5 py-2.5 flex justify-between items-center z-20 shrink-0">
-        <!-- Left: Logo & System Status -->
-        <div class="flex items-center space-x-3.5">
-            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 shadow-sm">
-                <i class="fa-solid fa-shield-halved text-lg"></i>
-            </div>
-            <div>
-                <div class="flex items-center space-x-2">
-                    <h1 class="text-base font-bold tracking-tight text-slate-900 flex items-center">
-                        TacNet <span class="text-blue-600 ml-1 font-semibold">IDRS</span>
-                    </h1>
-                    <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
-                        C Core v2.0
-                    </span>
-                    <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> REST :8080
-                    </span>
-                </div>
-                <p class="text-[11px] text-slate-400 font-medium">Intelligent Disaster Response Decision Support System</p>
-            </div>
-        </div>
+<div class="topbar">
+  <span class="crumbs">idrs / command-desk / live</span>
+  <span class="right"><span id="link"><span class="dot"></span>REST :8080</span><span id="clock">--</span></span>
+</div>
 
-        <!-- Center: Scenario Controls & Sync -->
-        <div class="flex items-center space-x-2.5">
-            <div class="flex items-center space-x-2 bg-slate-100/80 border border-slate-200 rounded-lg px-2.5 py-1">
-                <label class="text-[11px] font-semibold text-slate-500 flex items-center">
-                    <i class="fa-solid fa-map-location-dot mr-1.5 text-blue-600"></i> Scenario:
-                </label>
-                <select id="scenario-select" onchange="switchScenario(this.value)" class="bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-md px-2.5 py-1 focus:border-blue-500 focus:outline-none transition cursor-pointer shadow-sm">
-                    <option value="multihazard" selected>Multi-Hazard Unified Crisis (All Disasters)</option>
-                    <option value="assam">Assam Floods (Brahmaputra Valley)</option>
-                    <option value="kerala">Kerala Floods & Landslides (Wayanad/Idukki)</option>
-                    <option value="uttarakhand">Uttarakhand Flash Floods (Kedarnath)</option>
-                    <option value="odisha">Odisha Super Cyclone (Bay of Bengal)</option>
-                </select>
-            </div>
+<div class="shell">
+  <aside>
+    <div class="brand">
+      <h1>IDRS</h1>
+      <p class="label">Disaster response desk</p>
+    </div>
+    <nav id="nav">
+      <span class="label">Contents</span>
+      <a href="#overview" class="active"><span>01</span>Overview</a>
+      <a href="#queue"><span>02</span>Priority queue</a>
+      <a href="#network-sec"><span>03</span>Road network</a>
+      <a href="#resources"><span>04</span>Resources</a>
+      <a href="#missions"><span>05</span>Missions</a>
+    </nav>
+    <div class="side-foot">
+      <span class="label">Scenario</span>
+      <select id="scenario" class="field" onchange="loadScenario(this.value)">
+        <option value="" selected disabled>Load scenario…</option>
+        <option value="multihazard">Multi-hazard crisis</option>
+        <option value="assam">Assam floods</option>
+        <option value="kerala">Kerala landslides</option>
+        <option value="uttarakhand">Uttarakhand cloudburst</option>
+        <option value="odisha">Odisha cyclone</option>
+      </select>
+      <div class="row">
+        <button class="btn" onclick="openImport()">Import</button>
+        <button class="btn" id="reset-btn" onclick="resetFleet()">Reset</button>
+      </div>
+    </div>
+  </aside>
 
-            <button onclick="openScenarioModal()" title="Upload or paste custom scenario file" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-file-import mr-1.5 text-blue-600"></i> Import
-            </button>
-            
-            <button onclick="resetAllResources()" title="Reset rescue team availability and clear hospital occupancies" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-rotate-left mr-1.5 text-amber-500"></i> Reset Fleet
-            </button>
+  <main>
+    <!-- 01 OVERVIEW -->
+    <div class="head" id="overview">
+      <div>
+        <div class="label">Incident board · max-heap triage</div>
+        <h2>Command desk — live dispatch</h2>
+      </div>
+      <div class="tags"><span class="tag" id="tag-pending">0 pending</span><span class="tag solid" id="tag-top">top —</span></div>
+    </div>
 
-            <button onclick="refreshAll()" title="Synchronize state from backend" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center shadow-sm">
-                <i class="fa-solid fa-arrows-rotate mr-1.5 text-blue-100" id="sync-icon"></i> Sync
-            </button>
-        </div>
-
-        <!-- Right: Layout View Toggles -->
-        <div class="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
-            <button onclick="toggleSidebar('left')" id="btn-toggle-left" title="Toggle Queue Sidebar" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition text-xs font-medium flex items-center space-x-1">
-                <i class="fa-solid fa-bars-staggered"></i>
-                <span class="text-[11px] hidden sm:inline">Queue</span>
-            </button>
-            <button onclick="toggleSidebar('right')" id="btn-toggle-right" title="Toggle Fleet Sidebar" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition text-xs font-medium flex items-center space-x-1">
-                <i class="fa-solid fa-boxes-stacked"></i>
-                <span class="text-[11px] hidden sm:inline">Fleet</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Clean, Streamlined Metrics Status Strip -->
-    <section class="mx-3 mt-2 grid grid-cols-2 md:grid-cols-6 gap-2.5 z-10 shrink-0">
-        <!-- Metric 1: Pending Emergencies -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-triangle-exclamation text-sm"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Emergencies</div>
-                    <div class="flex items-baseline space-x-1.5">
-                        <span id="metric-pending" class="text-xl font-bold font-mono text-rose-600">0</span>
-                        <span id="metric-max-score" class="text-[10px] font-mono font-semibold px-1 rounded bg-rose-50 text-rose-700">Max: 0.0</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metric 2: Souls at Risk -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-users text-sm"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">People At Risk</div>
-                    <div class="flex items-baseline space-x-1.5">
-                        <span id="metric-affected" class="text-xl font-bold font-mono text-slate-800">0</span>
-                        <span class="text-[10px] text-rose-600 font-semibold flex items-center" title="Critical Medical Patients">
-                            <i class="fa-solid fa-heart-pulse mr-0.5 text-[9px]"></i><span id="metric-medical">0</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metric 3: Rescue Teams Ready -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-user-shield text-sm"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Teams Ready</div>
-                    <div class="flex items-baseline space-x-1 font-mono">
-                        <span id="metric-teams-avail" class="text-xl font-bold text-blue-600">0</span>
-                        <span class="text-xs text-slate-400">/</span>
-                        <span id="metric-teams-total" class="text-xs font-semibold text-slate-500">0</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metric 4: Transport Fleet Ready -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-truck-medical text-sm"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Transport Fleet</div>
-                    <div class="flex items-baseline space-x-1 font-mono">
-                        <span id="metric-transports-avail" class="text-xl font-bold text-indigo-600">0</span>
-                        <span class="text-xs text-slate-400">/</span>
-                        <span id="metric-transports-total" class="text-xs font-semibold text-slate-500">0</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metric 5: Hospital & Shelter Capacity -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3 w-full">
-                <div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-hospital text-sm"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                        <span>Shelters</span>
-                        <span id="metric-dest-pct" class="font-mono text-slate-500 font-semibold">0%</span>
-                    </div>
-                    <div class="flex items-baseline space-x-1 font-mono">
-                        <span id="metric-dest-occ" class="text-base font-bold text-emerald-600">0</span>
-                        <span class="text-xs text-slate-400">/<span id="metric-dest-cap">0</span></span>
-                    </div>
-                    <div class="w-full bg-slate-100 rounded-full h-1 mt-0.5 overflow-hidden">
-                        <div id="metric-dest-bar" class="bg-emerald-500 h-1 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metric 6: Network Road Status -->
-        <div class="card-surface px-3.5 py-2 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-road-barrier text-sm"></i>
-                </div>
-                <div>
-                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Road Disruptions</div>
-                    <div class="flex items-baseline space-x-1.5">
-                        <span id="metric-blocked-roads" class="text-xl font-bold font-mono text-slate-700">0</span>
-                        <span class="text-[10px] font-semibold text-slate-400">blocked</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <section class="card">
+      <div class="stats">
+        <div class="stat"><div class="label">Emergencies</div><div class="v" id="m-pending">0</div><div class="sub" id="m-resolved">0 resolved</div></div>
+        <div class="stat"><div class="label">People at risk</div><div class="v" id="m-affected">0</div><div class="sub" id="m-medical">0 need care</div></div>
+        <div class="stat"><div class="label">Teams ready</div><div class="v" id="m-teams">0 <small>/ 0</small></div><div class="sub" id="m-transport">0 / 0 transport</div></div>
+        <div class="stat"><div class="label">Beds used</div><div class="v" id="m-beds">0%</div><div class="meter"><i id="m-beds-bar" style="width:0"></i></div><div class="sub" id="m-beds-sub">0 / 0</div></div>
+        <div class="stat"><div class="label">Roads blocked</div><div class="v" id="m-blocked">0</div><div class="sub" id="m-locs">0 locations</div></div>
+      </div>
     </section>
 
-    <!-- Main Workspace Content -->
-    <main class="flex-1 flex gap-3 p-3 overflow-hidden relative">
-        
-        <!-- Left Column: Priority Queue & Incident Intake -->
-        <aside id="left-sidebar" class="smooth-sidebar w-[330px] flex flex-col gap-3 z-10 shrink-0 h-full">
-            
-            <!-- Collapsible Incident Intake Accordion -->
-            <div class="card-surface overflow-hidden">
-                <button type="button" onclick="toggleReportAccordion()" class="w-full px-3.5 py-2.5 flex justify-between items-center text-left hover:bg-slate-50 transition border-b border-transparent" id="report-header">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-solid fa-plus-circle text-blue-600 text-xs"></i>
-                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wide">Report New Incident</span>
-                    </div>
-                    <div class="flex items-center space-x-1.5">
-                        <span class="text-[10px] font-medium text-slate-400">Intake</span>
-                        <i id="report-chevron" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200"></i>
-                    </div>
-                </button>
+    <!-- 02 QUEUE -->
+    <section class="card" id="queue">
+      <div class="card-h"><h3><span>02</span>Priority queue</h3><span class="label" id="queue-meta">max-heap · 0</span></div>
+      <div class="card-b scroll-x" id="queue-body"></div>
+      <form class="intake" id="intake" onsubmit="reportIncident(event)">
+        <input class="field" id="in-loc" list="loc-list" placeholder="Location" required>
+        <select class="field" id="in-haz">
+          <option>Flood</option><option>Flash Flood</option><option>Landslide</option><option>Cloudburst</option>
+          <option>Cyclone</option><option>Storm Surge</option><option>Earthquake</option><option>Fire</option>
+          <option>Chemical</option><option>Tsunami</option>
+        </select>
+        <input class="field" id="in-aff" type="number" min="1" placeholder="People" required>
+        <input class="field" id="in-med" type="number" min="0" placeholder="Need care" required>
+        <button class="btn" type="submit">Add</button>
+      </form>
+      <div class="result" id="result"></div>
+      <div class="actions">
+        <button class="btn primary" id="dispatch-btn" onclick="dispatchNext()">Dispatch next</button>
+        <button class="btn" id="auto-btn" onclick="toggleAuto()">Auto</button>
+        <span class="spacer"></span>
+        <button class="btn" id="intake-btn" onclick="toggleIntake()">+ Report incident</button>
+      </div>
+    </section>
 
-                <!-- Collapsible Form Body -->
-                <div id="report-body" class="p-3.5 pt-1 space-y-2.5 border-t border-slate-100 hidden">
-                    <form id="emergency-form" onsubmit="submitEmergency(event)" class="space-y-2.5">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Target Location</label>
-                                <input list="locations-datalist" type="text" id="em-loc" placeholder="e.g. Jorhat" required 
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
-                                <datalist id="locations-datalist"></datalist>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Hazard Type</label>
-                                <select id="em-haz" required class="w-full bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none transition cursor-pointer shadow-sm">
-                                    <option value="Flood">🌊 Flood</option>
-                                    <option value="Flash Flood">⚡ Flash Flood</option>
-                                    <option value="Landslide">⛰️ Landslide</option>
-                                    <option value="Cloudburst">🌧️ Cloudburst</option>
-                                    <option value="Cyclone">🌪️ Cyclone</option>
-                                    <option value="Storm Surge">🌊 Storm Surge</option>
-                                    <option value="Earthquake">🏚️ Earthquake</option>
-                                    <option value="Fire">🔥 Fire</option>
-                                    <option value="Chemical">☣️ Chemical</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Affected People</label>
-                                <input type="number" id="em-aff" min="1" max="5000" placeholder="e.g. 150" required 
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 mb-1">Medical Urgent</label>
-                                <input type="number" id="em-med" min="0" max="5000" placeholder="e.g. 40" required 
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:outline-none transition shadow-sm">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-1.5 rounded-md text-xs font-semibold transition shadow-sm flex items-center justify-center">
-                            <i class="fa-solid fa-layer-group mr-1.5 text-xs text-slate-400"></i> Add to Priority Queue
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Priority Queue (Max Heap) -->
-            <div class="card-surface p-3.5 flex-1 flex flex-col min-h-0">
-                <div class="flex justify-between items-center mb-2.5 border-b border-slate-100 pb-2">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs uppercase tracking-wider font-bold text-slate-800 flex items-center">
-                            <i class="fa-solid fa-list-ol mr-1.5 text-blue-600"></i> Priority Queue
-                        </span>
-                        <span class="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">Max-Heap</span>
-                    </div>
-                    <div class="flex items-center space-x-1.5">
-                        <span id="queue-count" class="bg-rose-50 text-rose-700 font-mono text-xs font-bold px-2 py-0.5 rounded-full border border-rose-200">0</span>
-                        <button onclick="toggleSidebar('left')" title="Collapse Queue Panel" class="text-slate-400 hover:text-slate-700 p-1 transition rounded hover:bg-slate-100">
-                            <i class="fa-solid fa-angles-left text-[11px]"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Scrollable Emergencies List -->
-                <div class="overflow-y-auto custom-scroll flex-1 pr-1 space-y-2" id="queue-list">
-                    <!-- Dynamic Queue Cards -->
-                </div>
-
-                <!-- Sticky Bottom Dispatch Actions -->
-                <div class="pt-3 border-t border-slate-100 flex flex-col gap-2 mt-auto">
-                    <button onclick="processNext()" id="dispatch-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-xs font-bold tracking-wide uppercase transition duration-150 flex justify-center items-center shadow-sm hover:shadow">
-                        <i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder
-                    </button>
-                    
-                    <div class="flex items-center justify-between px-1 text-[11px] text-slate-500">
-                        <span class="flex items-center">
-                            <i class="fa-solid fa-robot mr-1.5 text-blue-600"></i> Auto-Simulate:
-                        </span>
-                        <button onclick="toggleAutoSimulate()" id="autosim-btn" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm">
-                            <i class="fa-solid fa-play mr-1.5 text-[10px] text-emerald-600"></i> START
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Center Column: Interactive Graph Map & Controls -->
-        <section class="flex-1 card-surface relative overflow-hidden flex flex-col h-full">
-            
-            <!-- Map Top Clean Overlay Header -->
-            <div class="absolute top-3 left-3 right-3 z-10 flex justify-between items-center pointer-events-none">
-                <div class="pointer-events-auto bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 flex items-center shadow-sm">
-                    <i class="fa-solid fa-circle-nodes mr-2 text-blue-600"></i>
-                    <span>Network Topology</span>
-                    <span id="topology-info" class="ml-2.5 text-[11px] font-mono text-slate-500 font-normal">--</span>
-                </div>
-
-                <!-- Subtle Legend -->
-                <div class="pointer-events-auto flex items-center space-x-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-600 shadow-sm">
-                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block mr-1.5"></span> Road Clear</span>
-                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block mr-1.5"></span> Blocked</span>
-                    <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block mr-1.5"></span> Active Route</span>
-                </div>
-            </div>
-
-            <!-- Floating Sidebar Reopen Buttons (visible when sidebars are collapsed) -->
-            <button id="reopen-left-btn" onclick="toggleSidebar('left')" title="Open Priority Queue" class="hidden absolute top-14 left-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 text-slate-700 hover:text-blue-600 p-2 rounded-lg shadow-sm hover:shadow transition flex items-center text-xs space-x-1.5 font-medium">
-                <i class="fa-solid fa-bars-staggered"></i>
-                <span>Queue</span>
-            </button>
-            <button id="reopen-right-btn" onclick="toggleSidebar('right')" title="Open Fleet Panel" class="hidden absolute top-14 right-3 z-10 bg-white/95 backdrop-blur-sm border border-slate-200 text-slate-700 hover:text-blue-600 p-2 rounded-lg shadow-sm hover:shadow transition flex items-center text-xs space-x-1.5 font-medium">
-                <span>Fleet</span>
-                <i class="fa-solid fa-boxes-stacked"></i>
-            </button>
-
-            <!-- Vis.js Graph Canvas Container -->
-            <div id="network" class="flex-1"></div>
-
-            <!-- Bottom Floating Dock: Route Inspector & Road Blocker -->
-            <div class="bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 z-10 flex flex-wrap gap-4 items-center justify-between text-xs">
-                <!-- Route Finder (Dijkstra Shortest Path) -->
-                <div class="flex items-center space-x-2 flex-1 min-w-[300px]">
-                    <span class="text-[11px] font-bold uppercase tracking-wide text-slate-600 flex items-center whitespace-nowrap">
-                        <i class="fa-solid fa-route mr-1.5 text-blue-600"></i> Route:
-                    </span>
-                    <select id="route-from" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[130px] shadow-sm"></select>
-                    <span class="text-slate-400"><i class="fa-solid fa-arrow-right text-[10px]"></i></span>
-                    <select id="route-to" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[130px] shadow-sm"></select>
-                    <button onclick="checkRoute()" class="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded-md font-semibold transition flex items-center shadow-sm">
-                        Calculate
-                    </button>
-                    <span id="route-result" class="text-xs font-mono font-medium text-slate-700 ml-2 truncate"></span>
-                </div>
-
-                <!-- Road Toggle Controls -->
-                <div class="flex items-center space-x-2">
-                    <span class="text-[11px] font-bold uppercase tracking-wide text-slate-600 flex items-center whitespace-nowrap">
-                        <i class="fa-solid fa-road-barrier mr-1.5 text-amber-500"></i> Road:
-                    </span>
-                    <select id="block-from" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[110px] shadow-sm"></select>
-                    <span class="text-slate-400"><i class="fa-solid fa-arrows-left-right text-[10px]"></i></span>
-                    <select id="block-to" class="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs text-slate-800 focus:outline-none focus:border-blue-500 max-w-[110px] shadow-sm"></select>
-                    <button onclick="toggleRoadBlockage('block')" class="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 px-2 py-1 rounded-md font-semibold transition">
-                        Block
-                    </button>
-                    <button onclick="toggleRoadBlockage('unblock')" class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-2 py-1 rounded-md font-semibold transition">
-                        Clear
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Column: Strategic Assets & Mission Log -->
-        <aside id="right-sidebar" class="smooth-sidebar w-[310px] flex flex-col gap-3 z-10 shrink-0 h-full">
-            <div class="card-surface p-3.5 flex-1 flex flex-col min-h-0">
-                
-                <!-- Clean Pill Tab Bar -->
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-slate-100 p-1 rounded-lg flex space-x-1 flex-1 mr-2">
-                        <button onclick="switchTab('assets')" id="tab-btn-assets" class="flex-1 py-1 text-center text-xs font-semibold rounded-md bg-white text-slate-800 shadow-sm transition">
-                            Fleet & Shelters
-                        </button>
-                        <button onclick="switchTab('history')" id="tab-btn-history" class="flex-1 py-1 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition">
-                            Missions
-                        </button>
-                        <button onclick="switchTab('add')" id="tab-btn-add" class="py-1 px-2.5 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition" title="Add Resource">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </div>
-                    <button onclick="toggleSidebar('right')" title="Collapse Fleet Panel" class="text-slate-400 hover:text-slate-700 p-1.5 transition rounded-lg hover:bg-slate-100">
-                        <i class="fa-solid fa-angles-right text-[11px]"></i>
-                    </button>
-                </div>
-
-                <!-- Tab 1: Live Assets (Teams, Transports, Hospitals) -->
-                <div id="tab-content-assets" class="flex-1 overflow-y-auto custom-scroll space-y-3 pr-1">
-                    <!-- Teams Section -->
-                    <div class="space-y-1.5">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
-                                <i class="fa-solid fa-users-gear mr-1.5 text-blue-600"></i> Rescue Teams
-                            </span>
-                            <span id="teams-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
-                        </div>
-                        <div id="teams-list" class="space-y-1.5"></div>
-                    </div>
-
-                    <!-- Transports Section -->
-                    <div class="space-y-1.5 pt-2 border-t border-slate-100">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
-                                <i class="fa-solid fa-truck mr-1.5 text-indigo-600"></i> Transport Units
-                            </span>
-                            <span id="transports-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
-                        </div>
-                        <div id="transports-list" class="space-y-1.5"></div>
-                    </div>
-
-                    <!-- Destinations / Hospitals Section -->
-                    <div class="space-y-1.5 pt-2 border-t border-slate-100">
-                        <div class="flex justify-between items-center px-1">
-                            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-500 flex items-center">
-                                <i class="fa-solid fa-hospital mr-1.5 text-emerald-600"></i> Relief Hospitals
-                            </span>
-                            <span id="destinations-count-badge" class="text-[10px] font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">0</span>
-                        </div>
-                        <div id="destinations-list" class="space-y-1.5"></div>
-                    </div>
-                </div>
-
-                <!-- Tab 2: Mission Logs / Dispatch Timeline -->
-                <div id="tab-content-history" class="hidden flex-1 overflow-y-auto custom-scroll space-y-2 pr-1">
-                    <div class="flex justify-between items-center px-1 mb-1">
-                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mission Audit Trail</span>
-                        <span id="history-count-badge" class="text-[10px] font-mono text-blue-600 font-semibold">0 records</span>
-                    </div>
-                    <div id="history-list" class="space-y-2"></div>
-                </div>
-
-                <!-- Tab 3: Quick Add Asset Form -->
-                <div id="tab-content-add" class="hidden flex-1 overflow-y-auto custom-scroll space-y-3 pr-1 text-xs">
-                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
-                        <h4 class="font-bold text-slate-800 uppercase text-[11px] tracking-wide">Register Rescue Team</h4>
-                        <form onsubmit="submitNewTeam(event)" class="space-y-2">
-                            <input type="text" id="add-team-name" placeholder="Team Name" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="add-team-loc" placeholder="Base Location" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                                <input type="number" id="add-team-cap" placeholder="Capacity" min="1" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                            </div>
-                            <div class="flex justify-between items-center text-[11px] text-slate-600 pt-0.5">
-                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-team-med" class="mr-1.5 rounded"> Medical Kit</label>
-                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-team-boat" class="mr-1.5 rounded"> Rescue Boat</label>
-                            </div>
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded font-semibold transition shadow-sm">Save Team</button>
-                        </form>
-                    </div>
-
-                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
-                        <h4 class="font-bold text-slate-800 uppercase text-[11px] tracking-wide">Register Hospital / Shelter</h4>
-                        <form onsubmit="submitNewDestination(event)" class="space-y-2">
-                            <input type="text" id="add-dest-name" placeholder="Hospital / Camp Name" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="add-dest-loc" placeholder="Location" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                                <input type="number" id="add-dest-cap" placeholder="Capacity" min="1" required class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none">
-                            </div>
-                            <div class="text-[11px] text-slate-600 pt-0.5">
-                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="add-dest-med" checked class="mr-1.5 rounded"> Trauma / Medical Support</label>
-                            </div>
-                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded font-semibold transition shadow-sm">Save Facility</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </aside>
-    </main>
-
-    <!-- Dispatch Result Confirmation Modal -->
-    <div id="dispatch-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden modal-enter">
-            <div id="modal-header" class="bg-emerald-50 border-b border-emerald-100 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-emerald-800 font-bold tracking-tight text-sm uppercase flex items-center">
-                    <i class="fa-solid fa-circle-check mr-2 text-emerald-600 text-base"></i> Dispatch Order Issued
-                </h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <div id="modal-content" class="p-6 space-y-4 text-xs">
-                <!-- Injected via JavaScript -->
-            </div>
-            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                <button onclick="replayLastDispatchRoute()" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center transition">
-                    <i class="fa-solid fa-eye mr-1.5"></i> Replay Route on Map
-                </button>
-                <button onclick="closeModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-sm">
-                    Acknowledge
-                </button>
-            </div>
+    <!-- 03 NETWORK -->
+    <section class="card" id="network-sec">
+      <div class="card-h">
+        <h3><span>03</span>Road network</h3>
+        <div class="legend">
+          <span><i style="background:var(--rust)"></i>Incident</span>
+          <span><i style="background:var(--teal)"></i>Hospital</span>
+          <span><i style="background:var(--teal-soft);border:1px solid var(--teal-2)"></i>Team base</span>
+          <span id="topo">0 nodes · 0 roads</span>
         </div>
-    </div>
+      </div>
+      <div id="network" class="hatch"></div>
+      <div class="edgebar" id="edgebar"></div>
+      <div class="map-ctl">
+        <span class="label">Route</span>
+        <select class="field" id="r-from"></select><span>→</span><select class="field" id="r-to"></select>
+        <button class="btn" onclick="findRoute()">Shortest path</button>
+        <span class="out" id="r-out">Click a road on the map to block or clear it.</span>
+      </div>
+    </section>
 
-    <!-- Custom Scenario Import Modal -->
-    <div id="scenario-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[90vh]">
-            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-slate-800 font-bold tracking-tight text-sm uppercase flex items-center">
-                    <i class="fa-solid fa-file-code mr-2 text-blue-600"></i> Import Custom Disaster Scenario
-                </h3>
-                <button onclick="closeScenarioModal()" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <div class="p-6 space-y-3 flex-1 overflow-y-auto custom-scroll text-xs">
-                <p class="text-slate-600">
-                    Paste custom scenario configuration or upload a <code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px]">.txt</code> file. The parser reads sections: <span class="font-mono text-blue-600">[LOCATIONS]</span>, <span class="font-mono text-blue-600">[ROADS]</span>, <span class="font-mono text-blue-600">[TEAMS]</span>, <span class="font-mono text-blue-600">[TRANSPORT]</span>, <span class="font-mono text-blue-600">[DESTINATIONS]</span>, and <span class="font-mono text-blue-600">[EMERGENCIES]</span>.
-                </p>
-                
-                <div class="flex items-center space-x-3">
-                    <input type="file" id="scenario-file-input" accept=".txt" onchange="handleScenarioFileUpload(event)" class="text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
-                    <button onclick="loadSampleTemplate()" class="text-blue-600 hover:underline text-xs font-semibold">Load Sample Template</button>
-                </div>
-
-                <textarea id="scenario-text-content" rows="12" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-800 focus:bg-white focus:border-blue-500 focus:outline-none custom-scroll shadow-inner"></textarea>
-            </div>
-            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-3">
-                <button onclick="closeScenarioModal()" class="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-semibold transition">Cancel</button>
-                <button onclick="submitCustomScenario()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-sm flex items-center">
-                    <i class="fa-solid fa-upload mr-1.5"></i> Load Scenario
-                </button>
-            </div>
+    <!-- 04 RESOURCES -->
+    <section class="card" id="resources">
+      <div class="card-h">
+        <h3><span>04</span>Resources</h3>
+        <div class="tabs" id="res-tabs">
+          <button class="active" data-tab="teams">Teams</button>
+          <button data-tab="transport">Transport</button>
+          <button data-tab="facilities">Facilities</button>
         </div>
+      </div>
+      <div class="card-b scroll-x" id="res-body"></div>
+    </section>
+
+    <!-- 05 MISSIONS -->
+    <section class="card" id="missions">
+      <div class="card-h"><h3><span>05</span>Missions</h3><span class="label" id="missions-meta">0 logged</span></div>
+      <div class="card-b scroll-x" id="missions-body"></div>
+    </section>
+  </main>
+</div>
+
+<datalist id="loc-list"></datalist>
+
+<dialog id="import">
+  <div class="card-h">
+    <h3><span>↑</span>Import scenario</h3>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="tabs" id="imp-tabs"><button class="active" data-pane="xlsx">Excel</button><button data-pane="text">Text</button></div>
+      <button class="btn" onclick="this.closest('dialog').close()">Close</button>
     </div>
-
-    <!-- Edge / Node Inspection Dialog -->
-    <div id="edge-dialog" class="fixed bottom-14 right-6 z-40 hidden bg-white border border-slate-200 rounded-xl p-4 shadow-xl max-w-sm text-xs modal-enter">
-        <div class="flex justify-between items-center mb-2">
-            <h4 id="edge-dialog-title" class="font-bold text-slate-800 uppercase tracking-wide">Road Segment</h4>
-            <button onclick="document.getElementById('edge-dialog').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <p id="edge-dialog-desc" class="text-slate-600 mb-3"></p>
-        <div id="edge-dialog-actions" class="flex space-x-2"></div>
+  </div>
+  <div class="pane show" id="pane-xlsx">
+    <label class="drop hatch" id="drop">
+      <span class="label">Drop an .xlsx workbook here</span>
+      <span class="file" id="xlsx-name">Locations · Roads · Teams · Transport · Facilities · Emergencies</span>
+      <span class="btn">Choose file</span>
+      <input type="file" id="xlsx-file" accept=".xlsx,.xls,.ods" hidden>
+    </label>
+    <div class="preview" id="xlsx-preview"></div>
+    <div style="margin:0 14px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn" onclick="downloadTemplate()">Download template</button>
+      <span class="label" style="text-transform:none;letter-spacing:.02em">One sheet per section, row 1 = headers. Prefilled with the current scenario.</span>
     </div>
-
-    <script>
-        // Vis.js Graph Instances
-        let network = null;
-        let nodes = new vis.DataSet([]);
-        let edges = new vis.DataSet([]);
-        let currentGraphData = { locations: [], edges: [] };
-        let currentEmergencies = [];
-        let currentTeams = [];
-        let currentDestinations = [];
-        let lastDispatchData = null;
-        let autoSimulateTimer = null;
-        let isReportAccordionOpen = false;
-
-        // Initialize Vis Network with Clean Light Modern Aesthetic
-        function initNetwork() {
-            const container = document.getElementById('network');
-            const data = { nodes: nodes, edges: edges };
-            const options = {
-                nodes: {
-                    shape: 'dot',
-                    size: 16,
-                    font: {
-                        color: '#0f172a',
-                        face: 'Inter, Segoe UI, sans-serif',
-                        size: 12,
-                        bold: true,
-                        strokeWidth: 3,
-                        strokeColor: '#ffffff'
-                    },
-                    borderWidth: 2.5,
-                    borderWidthSelected: 3.5,
-                    shadow: { enabled: true, color: 'rgba(0,0,0,0.06)', size: 6, x: 1, y: 2 }
-                },
-                edges: {
-                    width: 2.2,
-                    font: {
-                        align: 'top',
-                        color: '#64748b',
-                        size: 11,
-                        face: 'JetBrains Mono, monospace',
-                        strokeWidth: 3,
-                        strokeColor: '#ffffff'
-                    },
-                    smooth: { type: 'continuous', roundness: 0.15 },
-                    selectionWidth: 3.5
-                },
-                physics: {
-                    solver: 'forceAtlas2Based',
-                    forceAtlas2Based: {
-                        gravitationalConstant: -60,
-                        centralGravity: 0.015,
-                        springLength: 140,
-                        springConstant: 0.05
-                    },
-                    stabilization: { iterations: 120 }
-                },
-                interaction: {
-                    hover: true,
-                    tooltipDelay: 120,
-                    zoomView: true,
-                    dragView: true
-                }
-            };
-            network = new vis.Network(container, data, options);
-
-            // Click edge handler: prompt to toggle road blockage
-            network.on('click', function(params) {
-                if (params.edges.length > 0 && params.nodes.length === 0) {
-                    const edgeId = params.edges[0];
-                    const edgeObj = edges.get(edgeId);
-                    if (edgeObj) {
-                        showEdgeDialog(edgeObj);
-                    }
-                } else if (params.nodes.length > 0) {
-                    const nodeId = params.nodes[0];
-                    const nodeObj = nodes.get(nodeId);
-                    if (nodeObj) {
-                        document.getElementById('route-from').value = nodeObj.id;
-                    }
-                }
-            });
-        }
-
-        function showEdgeDialog(edgeObj) {
-            const isBlocked = edgeObj.isBlocked === 1;
-            const fromName = edgeObj.fromName || 'Node ' + edgeObj.from;
-            const toName = edgeObj.toName || 'Node ' + edgeObj.to;
-            const dist = edgeObj.label ? edgeObj.label.replace('✖ ', '') : 'Unknown';
-
-            document.getElementById('edge-dialog-title').innerHTML = 
-                `<i class="fa-solid fa-road mr-1.5 text-blue-600"></i> ${fromName} &harr; ${toName}`;
-            document.getElementById('edge-dialog-desc').innerHTML = 
-                `Distance: <strong class="text-slate-800">${dist}</strong><br>Status: <span class="${isBlocked ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}">${isBlocked ? 'Blocked / Flooded' : 'Clear & Navigable'}</span>`;
-
-            const actions = document.getElementById('edge-dialog-actions');
-            if (isBlocked) {
-                actions.innerHTML = `
-                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'unblock')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 py-1.5 rounded-md font-semibold transition">
-                        <i class="fa-solid fa-lock-open mr-1"></i> Clear Road
-                    </button>`;
-            } else {
-                actions.innerHTML = `
-                    <button onclick="executeRoadBlock(${edgeObj.from}, ${edgeObj.to}, 'block')" class="flex-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 py-1.5 rounded-md font-semibold transition">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Block Road
-                    </button>`;
-            }
-            document.getElementById('edge-dialog').classList.remove('hidden');
-        }
-
-        function executeRoadBlock(u, v, action) {
-            document.getElementById('edge-dialog').classList.add('hidden');
-            const url = action === 'block' ? '/api/block' : '/api/unblock';
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `source=${u}&destination=${v}`
-            })
-            .then(r => r.json())
-            .then(() => {
-                refreshAll();
-            });
-        }
-
-        // Toggle Sidebar collapses for focus mode
-        function toggleSidebar(side) {
-            const el = document.getElementById(`${side}-sidebar`);
-            const btn = document.getElementById(`btn-toggle-${side}`);
-            const reopenBtn = document.getElementById(`reopen-${side}-btn`);
-            if (!el) return;
-
-            if (el.classList.contains('hidden')) {
-                el.classList.remove('hidden');
-                if (btn) {
-                    btn.classList.add('bg-slate-100', 'text-slate-600');
-                    btn.classList.remove('bg-blue-50', 'text-blue-600');
-                }
-                if (reopenBtn) reopenBtn.classList.add('hidden');
-            } else {
-                el.classList.add('hidden');
-                if (btn) {
-                    btn.classList.remove('bg-slate-100', 'text-slate-600');
-                    btn.classList.add('bg-blue-50', 'text-blue-600');
-                }
-                if (reopenBtn) reopenBtn.classList.remove('hidden');
-            }
-            if (network) {
-                setTimeout(() => network.fit(), 310);
-            }
-        }
-
-        // Toggle Accordion for Incident Intake
-        function toggleReportAccordion() {
-            const body = document.getElementById('report-body');
-            const chevron = document.getElementById('report-chevron');
-            isReportAccordionOpen = !isReportAccordionOpen;
-            if (isReportAccordionOpen) {
-                body.classList.remove('hidden');
-                chevron.classList.add('rotate-180');
-            } else {
-                body.classList.add('hidden');
-                chevron.classList.remove('rotate-180');
-            }
-        }
-
-        // Fetch All Tactical Data
-        function refreshAll() {
-            const icon = document.getElementById('sync-icon');
-            if (icon) icon.classList.add('animate-spin');
-
-            Promise.all([
-                fetchMetrics(),
-                fetchGraph(),
-                fetchQueue(),
-                fetchTeams(),
-                fetchTransports(),
-                fetchDestinations(),
-                fetchHistory()
-            ]).finally(() => {
-                if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 350);
-            });
-        }
-
-        // 1. Metrics HUD
-        function fetchMetrics() {
-            return fetch('/api/metrics').then(r => r.json()).then(m => {
-                document.getElementById('metric-pending').innerText = m.pendingEmergencies || 0;
-                document.getElementById('metric-max-score').innerText = 'Max: ' + (m.maxPriorityScore ? m.maxPriorityScore.toFixed(1) : '0.0');
-                document.getElementById('metric-affected').innerText = (m.totalAffected || 0).toLocaleString();
-                document.getElementById('metric-medical').innerText = (m.totalMedical || 0).toLocaleString();
-
-                document.getElementById('metric-teams-avail').innerText = m.availableTeams || 0;
-                document.getElementById('metric-teams-total').innerText = m.totalTeams || 0;
-
-                document.getElementById('metric-transports-avail').innerText = m.availableTransports || 0;
-                document.getElementById('metric-transports-total').innerText = m.totalTransports || 0;
-
-                document.getElementById('metric-dest-occ').innerText = (m.destinationsOccupancy || 0).toLocaleString();
-                document.getElementById('metric-dest-cap').innerText = (m.destinationsCapacity || 0).toLocaleString();
-                const pct = m.destinationsCapacity > 0 ? Math.round((m.destinationsOccupancy / m.destinationsCapacity) * 100) : 0;
-                document.getElementById('metric-dest-pct').innerText = pct + '%';
-                const bar = document.getElementById('metric-dest-bar');
-                if (bar) {
-                    bar.style.width = Math.min(pct, 100) + '%';
-                    bar.className = pct > 85 ? 'bg-rose-500 h-1 rounded-full' : (pct > 60 ? 'bg-amber-500 h-1 rounded-full' : 'bg-emerald-500 h-1 rounded-full');
-                }
-
-                document.getElementById('metric-blocked-roads').innerText = m.blockedRoads || 0;
-            });
-        }
-
-        // 2. Graph Network
-        function fetchGraph() {
-            return fetch('/api/graph').then(r => r.json()).then(d => {
-                currentGraphData = d;
-                document.getElementById('topology-info').innerText = `${d.locations.length} Locations • ${d.edges.length} Routes`;
-                
-                populateLocationSelectors(d.locations);
-
-                // Build Vis nodes with clean modern palette
-                const nodeItems = d.locations.map(loc => {
-                    const hasEm = currentEmergencies.some(e => e.location.toLowerCase() === loc.name.toLowerCase());
-                    const hasHosp = currentDestinations.some(h => h.locationName.toLowerCase() === loc.name.toLowerCase());
-                    const hasTeam = currentTeams.some(t => t.locationName.toLowerCase() === loc.name.toLowerCase() && t.available);
-
-                    let bgColor = '#e2e8f0'; // Default clean slate
-                    let borderColor = '#94a3b8';
-                    let size = 16;
-
-                    if (hasEm) {
-                        bgColor = '#f43f5e'; // Soft rose
-                        borderColor = '#e11d48';
-                        size = 22;
-                    } else if (hasHosp) {
-                        bgColor = '#10b981'; // Emerald
-                        borderColor = '#059669';
-                        size = 19;
-                    } else if (hasTeam) {
-                        bgColor = '#6366f1'; // Indigo
-                        borderColor = '#4f46e5';
-                        size = 17;
-                    }
-
-                    return {
-                        id: loc.id,
-                        label: loc.name,
-                        color: {
-                            background: bgColor,
-                            border: borderColor,
-                            highlight: { background: '#3b82f6', border: '#1d4ed8' }
-                        },
-                        size: size
-                    };
-                });
-
-                // Build Vis edges with calm colors
-                const edgeItems = (d.edges || []).map((e) => {
-                    const isBlocked = e.isBlocked === 1;
-                    return {
-                        id: `edge_${e.from}_${e.to}`,
-                        from: e.from,
-                        to: e.to,
-                        label: isBlocked ? '✖ BLOCKED' : `${e.distance}km`,
-                        isBlocked: e.isBlocked,
-                        fromName: e.fromName,
-                        toName: e.toName,
-                        color: isBlocked ? { color: '#f43f5e', highlight: '#e11d48' } : { color: '#cbd5e1', highlight: '#3b82f6' },
-                        dashes: isBlocked ? [6, 6] : false,
-                        width: isBlocked ? 3 : 2
-                    };
-                });
-
-                nodes.clear();
-                edges.clear();
-                nodes.add(nodeItems);
-                edges.add(edgeItems);
-            });
-        }
-
-        function populateLocationSelectors(locations) {
-            const dList = document.getElementById('locations-datalist');
-            const rFrom = document.getElementById('route-from');
-            const rTo = document.getElementById('route-to');
-            const bFrom = document.getElementById('block-from');
-            const bTo = document.getElementById('block-to');
-
-            const prevRFrom = rFrom.value;
-            const prevRTo = rTo.value;
-
-            dList.innerHTML = locations.map(l => `<option value="${l.name}">`).join('');
-            
-            const optHtml = locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
-            rFrom.innerHTML = optHtml;
-            rTo.innerHTML = optHtml;
-            bFrom.innerHTML = optHtml;
-            bTo.innerHTML = optHtml;
-
-            if (prevRFrom) rFrom.value = prevRFrom;
-            if (prevRTo) rTo.value = prevRTo;
-            else if (locations.length > 1) rTo.value = locations[1].id;
-            if (locations.length > 1) bTo.value = locations[1].id;
-        }
-
-        // 3. Priority Queue (Max-Heap)
-        function fetchQueue() {
-            return fetch('/api/queue').then(r => r.json()).then(d => {
-                currentEmergencies = d.emergencies || [];
-                document.getElementById('queue-count').innerText = currentEmergencies.length;
-                const container = document.getElementById('queue-list');
-
-                if (currentEmergencies.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center text-slate-400 py-10 italic flex flex-col items-center">
-                            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
-                                <i class="fa-solid fa-check text-base"></i>
-                            </div>
-                            <span class="font-semibold text-slate-600 text-xs">All Sectors Stable</span>
-                            <span class="text-[11px] text-slate-400 mt-0.5">No active emergencies in Max-Heap</span>
-                        </div>`;
-                    return;
-                }
-
-                let html = '';
-                currentEmergencies.forEach((e, idx) => {
-                    const isTop = idx === 0;
-                    const hazardIcon = getHazardIcon(e.hazardType);
-                    html += `
-                        <div class="card-surface p-3 rounded-lg card-surface-hover ${isTop ? 'border-rose-300 bg-rose-50/40 ring-1 ring-rose-200' : 'bg-white'}">
-                            <div class="flex justify-between items-start mb-1.5">
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isTop ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600'}">
-                                        #${idx + 1}
-                                    </span>
-                                    <h4 class="font-bold text-slate-800 text-xs tracking-tight">${e.location}</h4>
-                                </div>
-                                <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isTop ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-slate-100 text-slate-700'}">
-                                    Score: ${e.priorityScore.toFixed(2)}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-500">
-                                <span class="font-medium text-slate-700">${hazardIcon} ${e.hazardType}</span>
-                                <div class="flex items-center space-x-2 font-mono text-[10px]">
-                                    <span title="Affected Souls" class="text-slate-600"><i class="fa-solid fa-person mr-0.5 text-slate-400"></i>${e.affectedPeople}</span>
-                                    <span title="Critical Medical Patients" class="text-rose-600 font-semibold"><i class="fa-solid fa-heart-pulse mr-0.5"></i>${e.peopleNeedingMedical}</span>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-                container.innerHTML = html;
-            });
-        }
-
-        function getHazardIcon(hazard) {
-            const h = (hazard || '').toLowerCase();
-            if (h.includes('flash')) return '⚡';
-            if (h.includes('flood')) return '🌊';
-            if (h.includes('landslide')) return '⛰️';
-            if (h.includes('cloudburst')) return '🌧️';
-            if (h.includes('cyclone') || h.includes('surge')) return '🌪️';
-            if (h.includes('fire')) return '🔥';
-            if (h.includes('earthquake')) return '🏚️';
-            return '⚠️';
-        }
-
-        // 4. Resources
-        function fetchTeams() {
-            return fetch('/api/teams').then(r => r.json()).then(d => {
-                currentTeams = d.teams || [];
-                document.getElementById('teams-count-badge').innerText = `${currentTeams.filter(t=>t.available).length}/${currentTeams.length} ready`;
-                const container = document.getElementById('teams-list');
-                container.innerHTML = currentTeams.map(t => `
-                    <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-xs">
-                        <div>
-                            <div class="font-semibold text-slate-800 tracking-tight">${t.name}</div>
-                            <div class="text-[10px] text-slate-500 flex items-center space-x-2 mt-0.5">
-                                <span><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>${t.locationName}</span>
-                                <span>Cap: ${t.capacity}</span>
-                                ${t.medicalKit ? '<span class="text-rose-600 font-semibold">MED</span>' : ''}
-                                ${t.boatAvailable ? '<span class="text-blue-600 font-semibold">BOAT</span>' : ''}
-                            </div>
-                        </div>
-                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-500'}">
-                            ${t.available ? 'STANDBY' : 'DEPLOYED'}
-                        </span>
-                    </div>
-                `).join('') || '<div class="text-slate-400 text-xs italic py-2">No teams registered</div>';
-            });
-        }
-
-        function fetchTransports() {
-            return fetch('/api/transport').then(r => r.json()).then(d => {
-                const transports = d.transports || [];
-                document.getElementById('transports-count-badge').innerText = `${transports.filter(t=>t.available).length}/${transports.length} ready`;
-                const container = document.getElementById('transports-list');
-                container.innerHTML = transports.map(t => `
-                    <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-xs">
-                        <div>
-                            <div class="font-semibold text-slate-800">${t.type}</div>
-                            <div class="text-[10px] text-slate-500 flex items-center space-x-2 mt-0.5">
-                                <span>Cap: ${t.capacity}</span>
-                                ${t.floodSuitable ? '<span class="text-blue-600 font-semibold">All-Terrain</span>' : ''}
-                            </div>
-                        </div>
-                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${t.available ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-200 text-slate-500'}">
-                            ${t.available ? 'READY' : 'EN ROUTE'}
-                        </span>
-                    </div>
-                `).join('') || '<div class="text-slate-400 text-xs italic py-2">No transport vehicles</div>';
-            });
-        }
-
-        function fetchDestinations() {
-            return fetch('/api/destinations').then(r => r.json()).then(d => {
-                currentDestinations = d.destinations || [];
-                document.getElementById('destinations-count-badge').innerText = `${currentDestinations.length} facilities`;
-                const container = document.getElementById('destinations-list');
-                container.innerHTML = currentDestinations.map(h => {
-                    const pct = h.capacity > 0 ? Math.round((h.currentOccupancy / h.capacity) * 100) : 0;
-                    return `
-                        <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
-                            <div class="flex justify-between items-start">
-                                <span class="font-semibold text-slate-800 truncate max-w-[170px]" title="${h.name}">${h.name}</span>
-                                <span class="text-[10px] font-mono ${pct > 90 ? 'text-rose-600 font-bold' : 'text-slate-600'}">${h.currentOccupancy}/${h.capacity}</span>
-                            </div>
-                            <div class="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
-                                <div class="${pct > 90 ? 'bg-rose-500' : (pct > 65 ? 'bg-amber-500' : 'bg-emerald-500')} h-1 rounded-full transition-all duration-300" style="width: ${Math.min(pct, 100)}%"></div>
-                            </div>
-                            <div class="flex justify-between text-[10px] text-slate-500">
-                                <span><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>${h.locationName}</span>
-                                ${h.medicalSupport ? '<span class="text-emerald-700 font-medium">Trauma Center</span>' : '<span class="text-slate-500">Shelter Camp</span>'}
-                            </div>
-                        </div>
-                    `;
-                }).join('') || '<div class="text-slate-400 text-xs italic py-2">No destinations registered</div>';
-            });
-        }
-
-        // 5. Mission History Log
-        function fetchHistory() {
-            return fetch('/api/history').then(r => r.json()).then(d => {
-                const logs = d.history || [];
-                document.getElementById('history-count-badge').innerText = `${logs.length} logged`;
-                const container = document.getElementById('history-list');
-                if (logs.length === 0) {
-                    container.innerHTML = '<div class="text-center text-slate-400 py-6 italic text-xs">No rescue missions executed yet</div>';
-                    return;
-                }
-                container.innerHTML = logs.map(m => `
-                    <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1.5">
-                        <div class="flex justify-between items-center text-[10px]">
-                            <span class="font-mono text-blue-600 font-bold">#MISSION-${m.emergencyId}</span>
-                            <span class="text-slate-400 font-mono">${m.timestamp}</span>
-                        </div>
-                        <div class="font-semibold text-slate-800 flex items-center">
-                            <span class="mr-1.5">${getHazardIcon(m.hazard)}</span>
-                            <span>${m.location}</span>
-                            <span class="text-[10px] text-slate-500 font-normal ml-2">(${m.affected} evacuated)</span>
-                        </div>
-                        <div class="text-[10px] text-slate-500 space-y-0.5 border-t border-slate-200/60 pt-1">
-                            <div><i class="fa-solid fa-users text-blue-600 w-4"></i> Team: <strong class="text-slate-700">${m.team}</strong></div>
-                            <div><i class="fa-solid fa-hospital text-emerald-600 w-4"></i> Destination: <strong class="text-slate-700">${m.destination}</strong></div>
-                            <div class="text-slate-400 font-mono">Distance: ${m.distToEmergency}km + ${m.distToDestination}km</div>
-                        </div>
-                    </div>
-                `).join('');
-            });
-        }
-
-        // Dispatch Responders (Dijkstra + Greedy Allocation)
-        function processNext() {
-            const btn = document.getElementById('dispatch-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-2"></i> Computing Optimal Routes...';
-
-            fetch('/api/process', { method: 'POST' })
-            .then(r => r.json())
-            .then(d => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder';
-
-                if (d.error) {
-                    showModal('Dispatch Failed', `<div class="text-rose-600 text-center py-4 text-sm font-semibold">${d.error}</div>`, true);
-                } else {
-                    lastDispatchData = d;
-                    displayDispatchResult(d);
-                    highlightDispatchPath(d);
-                }
-                refreshAll();
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-emerald-200"></i> Dispatch Next Responder';
-                showModal('System Error', `<div class="text-rose-600 text-center py-4 text-sm">${err.message}</div>`, true);
-            });
-        }
-
-        function displayDispatchResult(d) {
-            const html = `
-                <div class="space-y-3.5">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center">
-                        <div>
-                            <span class="text-[10px] uppercase font-bold text-slate-400">Incident Target</span>
-                            <div class="text-base font-bold text-slate-900 flex items-center">
-                                <span class="mr-1.5">${getHazardIcon(d.hazard)}</span> ${d.location}
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[10px] uppercase font-bold text-slate-400">Mission Ref</span>
-                            <div class="text-sm font-mono font-bold text-blue-600">#EM-${d.emergencyId}</div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 text-center">
-                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Assigned Team</div>
-                            <div class="font-bold text-blue-600 mt-0.5">${d.team}</div>
-                            <div class="text-[9px] text-slate-400 font-mono">Base: ${d.teamBase}</div>
-                        </div>
-                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Transport Unit</div>
-                            <div class="font-bold text-indigo-600 mt-0.5">${d.transport}</div>
-                            <div class="text-[9px] text-slate-400 font-mono">En Route</div>
-                        </div>
-                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Evacuation Hub</div>
-                            <div class="font-bold text-emerald-600 mt-0.5">${d.destination}</div>
-                            <div class="text-[9px] text-slate-400 font-mono">Occ: ${d.destOccupancy}/${d.destCapacity}</div>
-                        </div>
-                    </div>
-
-                    <!-- Turn-by-turn Route Information -->
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
-                            <span><i class="fa-solid fa-route mr-1.5 text-blue-600"></i> Leg 1: Team Base &rarr; Incident</span>
-                            <span class="font-mono text-blue-600 font-bold">${d.routeToEmergency} km</span>
-                        </div>
-                        <div class="text-xs font-mono text-slate-700 bg-white px-2.5 py-1.5 rounded-md border border-slate-200 flex items-center flex-wrap gap-1">
-                            ${(d.pathEmergency || []).map((step, idx) => `
-                                <span class="text-blue-700 font-bold">${step}</span>
-                                ${idx < d.pathEmergency.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-400 text-[10px]"></i>' : ''}
-                            `).join('')}
-                        </div>
-
-                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between pt-2 border-t border-slate-200">
-                            <span><i class="fa-solid fa-truck-medical mr-1.5 text-emerald-600"></i> Leg 2: Incident &rarr; Hospital</span>
-                            <span class="font-mono text-emerald-600 font-bold">${d.routeToDestination} km</span>
-                        </div>
-                        <div class="text-xs font-mono text-slate-700 bg-white px-2.5 py-1.5 rounded-md border border-slate-200 flex items-center flex-wrap gap-1">
-                            ${(d.pathDestination || []).map((step, idx) => `
-                                <span class="text-emerald-700 font-bold">${step}</span>
-                                ${idx < d.pathDestination.length - 1 ? '<i class="fa-solid fa-angle-right text-slate-400 text-[10px]"></i>' : ''}
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            showModal('Dispatch Order Confirmed', html);
-        }
-
-        // Highlight Dispatch Route on Vis.js Map
-        function highlightDispatchPath(d) {
-            if (!d.pathEmergency && !d.pathDestination) return;
-
-            const allSteps = [...(d.pathEmergency || []), ...(d.pathDestination || [])];
-            const nodeUpdates = [];
-            nodes.forEach(n => {
-                if (allSteps.includes(n.label)) {
-                    nodeUpdates.push({
-                        id: n.id,
-                        color: { background: '#2563eb', border: '#1d4ed8' },
-                        size: 24
-                    });
-                }
-            });
-            nodes.update(nodeUpdates);
-
-            const edgeUpdates = [];
-            edges.forEach(e => {
-                const uName = e.fromName;
-                const vName = e.toName;
-                let onPath = false;
-                for (let i = 0; i < allSteps.length - 1; i++) {
-                    if ((allSteps[i] === uName && allSteps[i+1] === vName) ||
-                        (allSteps[i] === vName && allSteps[i+1] === uName)) {
-                        onPath = true;
-                        break;
-                    }
-                }
-                if (onPath) {
-                    edgeUpdates.push({
-                        id: e.id,
-                        color: { color: '#2563eb', highlight: '#1d4ed8' },
-                        width: 4.5
-                    });
-                }
-            });
-            edges.update(edgeUpdates);
-
-            // Focus on emergency node
-            const emNode = nodes.get({ filter: item => item.label.toLowerCase() === d.location.toLowerCase() });
-            if (emNode && emNode.length > 0) {
-                network.focus(emNode[0].id, { scale: 1.1, animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
-            }
-        }
-
-        function replayLastDispatchRoute() {
-            closeModal();
-            if (lastDispatchData) {
-                highlightDispatchPath(lastDispatchData);
-            }
-        }
-
-        // Check Dijkstra Route between any two nodes
-        function checkRoute() {
-            const from = document.getElementById('route-from').value;
-            const to = document.getElementById('route-to').value;
-            const resEl = document.getElementById('route-result');
-            resEl.innerText = 'Calculating...';
-
-            fetch(`/api/route?from=${from}&to=${to}`)
-            .then(r => r.json())
-            .then(d => {
-                if (d.error) {
-                    resEl.innerHTML = `<span class="text-rose-600 font-semibold">${d.error}</span>`;
-                    return;
-                }
-                if (!d.reachable || d.distance === -1) {
-                    resEl.innerHTML = `<span class="text-rose-600 font-semibold"><i class="fa-solid fa-ban mr-1"></i> Unreachable (Blocked)</span>`;
-                } else {
-                    resEl.innerHTML = `<span class="text-emerald-700 font-bold">${d.distance} km:</span> <span class="text-slate-600 font-mono text-[11px]">${(d.path||[]).join(' &rarr; ')}</span>`;
-                    
-                    const pathNodes = d.path || [];
-                    const edgeUpdates = [];
-                    edges.forEach(e => {
-                        let onPath = false;
-                        for (let i = 0; i < pathNodes.length - 1; i++) {
-                            if ((pathNodes[i] === e.fromName && pathNodes[i+1] === e.toName) ||
-                                (pathNodes[i] === e.toName && pathNodes[i+1] === e.fromName)) {
-                                onPath = true;
-                                break;
-                            }
-                        }
-                        if (onPath) {
-                            edgeUpdates.push({ id: e.id, color: { color: '#2563eb', highlight: '#1d4ed8' }, width: 4 });
-                        } else {
-                            edgeUpdates.push({ id: e.id, color: e.isBlocked ? { color: '#f43f5e' } : { color: '#cbd5e1' }, width: e.isBlocked ? 3 : 2 });
-                        }
-                    });
-                    edges.update(edgeUpdates);
-                }
-            });
-        }
-
-        // Toggle Road Blockage from bottom bar
-        function toggleRoadBlockage(action) {
-            const u = document.getElementById('block-from').value;
-            const v = document.getElementById('block-to').value;
-            executeRoadBlock(u, v, action);
-        }
-
-        // Auto-Simulation Mode (Processes one emergency every 2.5s)
-        function toggleAutoSimulate() {
-            const btn = document.getElementById('autosim-btn');
-            if (autoSimulateTimer) {
-                clearInterval(autoSimulateTimer);
-                autoSimulateTimer = null;
-                btn.innerHTML = '<i class="fa-solid fa-play mr-1.5 text-[10px] text-emerald-600"></i> START';
-                btn.className = 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm';
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5 text-[10px] text-amber-600"></i> PAUSE';
-                btn.className = 'bg-amber-50 border border-amber-300 text-amber-800 px-3 py-1 rounded-md text-[11px] font-mono font-semibold transition flex items-center shadow-sm';
-                
-                processNext();
-                autoSimulateTimer = setInterval(() => {
-                    if (currentEmergencies.length === 0) {
-                        toggleAutoSimulate();
-                        return;
-                    }
-                    processNext();
-                }, 3000);
-            }
-        }
-
-        // Switch Scenario Preset
-        function switchScenario(name) {
-            fetch('/api/scenario', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `scenario=${name}`
-            })
-            .then(r => r.json())
-            .then(() => {
-                refreshAll();
-            });
-        }
-
-        // Reset All Fleet and Occupancies
-        function resetAllResources() {
-            if (!confirm("Reset all rescue teams and transport to Standby, and clear hospital occupancies?")) return;
-            fetch('/api/reset', { method: 'POST' })
-            .then(r => r.json())
-            .then(() => refreshAll());
-        }
-
-        // Submit New Incident
-        function submitEmergency(e) {
-            e.preventDefault();
-            const loc = document.getElementById('em-loc').value.trim();
-            const haz = document.getElementById('em-haz').value;
-            const aff = document.getElementById('em-aff').value;
-            const med = document.getElementById('em-med').value;
-
-            const payload = new URLSearchParams({
-                location: loc,
-                hazardType: haz,
-                affectedPeople: aff,
-                peopleNeedingMedical: med
-            });
-
-            fetch('/api/emergencies', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: payload.toString()
-            })
-            .then(r => r.json())
-            .then(() => {
-                document.getElementById('emergency-form').reset();
-                refreshAll();
-            });
-        }
-
-        // Quick Registration Form Submissions
-        function submitNewTeam(e) {
-            e.preventDefault();
-            const name = document.getElementById('add-team-name').value;
-            const loc = document.getElementById('add-team-loc').value;
-            const cap = document.getElementById('add-team-cap').value;
-            const med = document.getElementById('add-team-med').checked ? 1 : 0;
-            const boat = document.getElementById('add-team-boat').checked ? 1 : 0;
-
-            const payload = new URLSearchParams({ name, location: loc, capacity: cap, medicalKit: med, boatAvailable: boat });
-            fetch('/api/teams', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: payload.toString() })
-            .then(r => r.json())
-            .then(() => {
-                e.target.reset();
-                switchTab('assets');
-                refreshAll();
-            });
-        }
-
-        function submitNewDestination(e) {
-            e.preventDefault();
-            const name = document.getElementById('add-dest-name').value;
-            const loc = document.getElementById('add-dest-loc').value;
-            const cap = document.getElementById('add-dest-cap').value;
-            const med = document.getElementById('add-dest-med').checked ? 1 : 0;
-
-            const payload = new URLSearchParams({ name, location: loc, capacity: cap, medicalSupport: med });
-            fetch('/api/destinations', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: payload.toString() })
-            .then(r => r.json())
-            .then(() => {
-                e.target.reset();
-                switchTab('assets');
-                refreshAll();
-            });
-        }
-
-        // Custom Scenario Modal Functions
-        function openScenarioModal() {
-            document.getElementById('scenario-modal').classList.remove('hidden');
-        }
-
-        function closeScenarioModal() {
-            document.getElementById('scenario-modal').classList.add('hidden');
-        }
-
-        function handleScenarioFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('scenario-text-content').value = e.target.result;
-            };
-            reader.readAsText(file);
-        }
-
-        function loadSampleTemplate() {
-            const sample = `# ==============================================================================
-# INTELLIGENT DISASTER RESPONSE SYSTEM - SCENARIO TEMPLATE
-# ==============================================================================
-
-[LOCATIONS]
-Central_Metro
-River_Basin
-Highland_Ridge
-Coastal_Harbor
-Industrial_District
-Suburban_Town
-Forest_Reserve
-Island_Sanctuary
-North_Valley
-Southern_Plains
+  </div>
+  <div class="pane" id="pane-text">
+  <textarea id="import-text" spellcheck="false" placeholder="[LOCATIONS]
+Metro_City
+Harbor_Bay
 
 [ROADS]
-# Format: From | To | Distance(km)
-Central_Metro | Suburban_Town | 15
-Central_Metro | Industrial_District | 12
-Central_Metro | River_Basin | 25
-Suburban_Town | Southern_Plains | 20
-Industrial_District | Coastal_Harbor | 35
-Central_Metro | Highland_Ridge | 45
-Highland_Ridge | North_Valley | 30
-North_Valley | River_Basin | 22
-Coastal_Harbor | Island_Sanctuary | 18
-Coastal_Harbor | Southern_Plains | 40
-Highland_Ridge | Forest_Reserve | 25
-Forest_Reserve | Suburban_Town | 28
-River_Basin | Suburban_Town | 18
-Industrial_District | Southern_Plains | 32
+Metro_City | Harbor_Bay | 25
 
 [TEAMS]
-# Format: Name | BaseLocation | Capacity | MedicalKit(yes/no) | RescueBoat(yes/no)
-NDRF Heavy Urban SAR | Central_Metro | 250 | yes | no
-Coastal Marine Amphibious Force | Coastal_Harbor | 180 | yes | yes
-Highland Alpine Rescue Team | Highland_Ridge | 120 | yes | no
-Hazmat Chemical Response Corps | Industrial_District | 140 | yes | no
-Riverine Flood Rescue Division | River_Basin | 110 | yes | yes
-Civil Defense Volunteer Brigade | Suburban_Town | 90 | no | yes
-Southern Rapid Relief Squad | Southern_Plains | 130 | yes | no
+Rapid Task Force | Metro_City | 150 | yes | yes
 
 [TRANSPORT]
-# Format: VehicleType | Capacity | FloodAmphibiousSuitable(yes/no)
-Heavy Amphibious Rescue Trucks | 90 | yes
-Search & Rescue Helicopter Fleet | 60 | yes
-High-Speed Disaster Motorboats | 45 | yes
-Advanced Mobile ICU Ambulances | 30 | no
-Heavy Evacuation Transport Busses | 110 | no
-4x4 Mountain Tactical Jeeps | 35 | yes
+Air Force Chopper | 60 | yes
 
 [DESTINATIONS]
-# Format: FacilityName | Location | Capacity | TraumaMedicalSupport(yes/no)
-Apex Multi-Specialty Trauma Center | Central_Metro | 900 | yes
-Southern Regional Base Hospital | Southern_Plains | 700 | yes
-Coastal Naval Medical Station | Coastal_Harbor | 450 | yes
-Suburban Mega Evacuation Shelter | Suburban_Town | 1000 | no
-North Valley Community Hospital | North_Valley | 350 | yes
-Highland Emergency Medical Post | Highland_Ridge | 250 | yes
+Central Hospital | Metro_City | 500 | yes
 
 [EMERGENCIES]
-# Format: Location | HazardType | AffectedSouls | CriticalMedicalUrgent
-Coastal_Harbor | Cyclone | 580 | 340
-Central_Metro | Earthquake | 490 | 360
-River_Basin | Flash Flood | 340 | 130
-Highland_Ridge | Landslide | 230 | 180
-Industrial_District | Chemical | 190 | 160
-Forest_Reserve | Fire | 150 | 50
-Island_Sanctuary | Tsunami | 320 | 220
-North_Valley | Flood | 210 | 80
-`;
-            document.getElementById('scenario-text-content').value = sample;
-        }
+Harbor_Bay | Flood | 240 | 110"></textarea>
+  </div>
+  <div class="actions"><span class="label" id="imp-note">Replaces the current scenario</span><span class="spacer"></span><button class="btn primary" id="imp-go" onclick="importScenario()">Import</button></div>
+</dialog>
 
-        function submitCustomScenario() {
-            const content = document.getElementById('scenario-text-content').value.trim();
-            if (!content) {
-                alert("Please provide scenario text content.");
-                return;
-            }
-            const payload = new URLSearchParams({ content: content });
-            fetch('/api/scenario', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: payload.toString()
-            })
-            .then(r => r.json())
-            .then(() => {
-                closeScenarioModal();
-                refreshAll();
-            });
-        }
+<script>
+const C = {
+  ink: '#1d272c', muted: '#86929a', panel: '#ffffff', edge: '#b9c2c6',
+  teal: '#0e6a72', teal2: '#3f9aa1', tealSoft: '#cfe7e8', rust: '#b0533c', node: '#e6e9eb'
+};
+const state = { emergencies: [], teams: [], transports: [], dests: [], graph: { locations: [], edges: [] }, tab: 'teams', auto: null, routeEdges: new Set() };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = n => Number(n || 0).toLocaleString();
+const api = (path, body) => fetch(path, body === undefined ? {} : {
+  method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString()
+}).then(r => r.json()).then(d => { setLink(true); return d; }).catch(e => { setLink(false); throw e; });
+function setLink(ok) { $('link').innerHTML = `<span class="dot ${ok ? '' : 'off'}"></span>${ok ? 'REST :' + (location.port || 80) : 'OFFLINE'}`; }
 
-        // Tab Switcher with Clean Pills
-        function switchTab(tab) {
-            const tabs = ['assets', 'history', 'add'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`tab-btn-${t}`);
-                const content = document.getElementById(`tab-content-${t}`);
-                if (t === tab) {
-                    btn.className = 'flex-1 py-1 text-center text-xs font-semibold rounded-md bg-white text-slate-800 shadow-sm transition';
-                    content.classList.remove('hidden');
-                } else {
-                    btn.className = 'flex-1 py-1 text-center text-xs font-semibold rounded-md text-slate-500 hover:text-slate-800 transition';
-                    content.classList.add('hidden');
-                }
-            });
-        }
+/* ---------- network map ---------- */
+const nodes = new vis.DataSet([]), edges = new vis.DataSet([]);
+const network = new vis.Network($('network'), { nodes, edges }, {
+  nodes: { shape: 'dot', size: 12, borderWidth: 1.5, font: { face: 'IBM Plex Mono', size: 11, color: C.ink, strokeWidth: 3, strokeColor: C.panel } },
+  edges: { width: 1.5, color: { color: C.edge, highlight: C.teal2 }, smooth: { type: 'continuous', roundness: .12 },
+           font: { face: 'IBM Plex Mono', size: 10, color: C.muted, strokeWidth: 3, strokeColor: C.panel, align: 'top' } },
+  physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -55, springLength: 130, springConstant: .05 }, stabilization: { iterations: 150 } },
+  interaction: { hover: true }
+});
+network.on('click', p => {
+  if (p.nodes.length) { $('r-from').value = p.nodes[0]; return; }
+  if (p.edges.length) showEdge(edges.get(p.edges[0])); else $('edgebar').classList.remove('show');
+});
 
-        // Modal Helpers with Clean Light Styling
-        function showModal(title, contentHtml, isError = false) {
-            const m = document.getElementById('dispatch-modal');
-            const h = document.getElementById('modal-header');
-            if (isError) {
-                h.className = 'bg-rose-50 border-b border-rose-100 px-6 py-4 flex items-center justify-between';
-                h.innerHTML = `<h3 class="text-rose-800 font-bold tracking-tight uppercase text-sm flex items-center"><i class="fa-solid fa-triangle-exclamation mr-2 text-rose-600"></i> ${title}</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>`;
-            } else {
-                h.className = 'bg-emerald-50 border-b border-emerald-100 px-6 py-4 flex items-center justify-between';
-                h.innerHTML = `<h3 class="text-emerald-800 font-bold tracking-tight uppercase text-sm flex items-center"><i class="fa-solid fa-circle-check mr-2 text-emerald-600"></i> ${title}</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>`;
-            }
-            document.getElementById('modal-content').innerHTML = contentHtml;
-            m.classList.remove('hidden');
-        }
+function nodeStyle(name) {
+  const n = name.toLowerCase();
+  if (state.emergencies.some(e => e.location.toLowerCase() === n)) return { bg: C.rust, br: C.rust, size: 15 };
+  if (state.dests.some(d => (d.locationName || '').toLowerCase() === n)) return { bg: C.teal, br: C.teal, size: 13 };
+  if (state.teams.some(t => (t.locationName || '').toLowerCase() === n && t.available)) return { bg: C.tealSoft, br: C.teal2, size: 12 };
+  return { bg: C.node, br: '#9aa5ab', size: 11 };
+}
+function edgeStyle(e) {
+  if (e.isBlocked) return { color: { color: C.rust, highlight: C.rust }, dashes: [5, 5], width: 2, label: 'blocked' };
+  const onRoute = state.routeEdges.has(e.id);
+  return { color: { color: onRoute ? C.teal : C.edge, highlight: C.teal2 }, dashes: false, width: onRoute ? 4 : 1.5, label: `${e.distance} km` };
+}
+function drawGraph() {
+  const g = state.graph;
+  const first = nodes.length === 0;
+  const nItems = g.locations.map(l => { const s = nodeStyle(l.name); return { id: l.id, label: l.name, size: s.size, color: { background: s.bg, border: s.br, highlight: { background: C.teal2, border: C.teal } } }; });
+  const eItems = g.edges.map(e => { const base = { id: `${e.from}_${e.to}`, from: e.from, to: e.to, fromName: e.fromName, toName: e.toName, distance: e.distance, isBlocked: e.isBlocked }; return { ...base, ...edgeStyle(base) }; });
+  const ids = new Set(nItems.map(n => n.id));
+  nodes.remove(nodes.getIds().filter(id => !ids.has(id)));
+  nodes.update(nItems);
+  const eids = new Set(eItems.map(e => e.id));
+  edges.remove(edges.getIds().filter(id => !eids.has(id)));
+  edges.update(eItems);
+  if (first) network.once('stabilizationIterationsDone', () => network.fit({ animation: false }));
+}
+function highlightPath(names) {
+  state.routeEdges = new Set();
+  for (let i = 0; i < names.length - 1; i++) {
+    edges.forEach(e => {
+      if ((e.fromName === names[i] && e.toName === names[i + 1]) || (e.toName === names[i] && e.fromName === names[i + 1])) state.routeEdges.add(e.id);
+    });
+  }
+  edges.update(edges.get().map(e => ({ id: e.id, ...edgeStyle(e) })));
+}
+function showEdge(e) {
+  if (!e) return;
+  const bar = $('edgebar');
+  bar.innerHTML = `<span class="label">Road</span><span>${esc(e.fromName)} ↔ ${esc(e.toName)}</span><span style="color:var(--muted)">${e.distance} km</span>
+    <span class="tag ${e.isBlocked ? 'alert' : ''}">${e.isBlocked ? 'blocked' : 'clear'}</span><span style="flex:1"></span>
+    <button class="btn" onclick="setRoad(${e.from},${e.to},${e.isBlocked ? 0 : 1})">${e.isBlocked ? 'Clear road' : 'Block road'}</button>
+    <button class="btn" onclick="$('edgebar').classList.remove('show')">×</button>`;
+  bar.classList.add('show');
+}
+function setRoad(u, v, block) {
+  api(block ? '/api/block' : '/api/unblock', { source: u, destination: v }).then(() => { $('edgebar').classList.remove('show'); refresh(); });
+}
+function findRoute() {
+  const from = $('r-from').value, to = $('r-to').value, out = $('r-out');
+  api(`/api/route?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then(d => {
+    if (d.error) { out.innerHTML = `<span style="color:var(--rust)">${esc(d.error)}</span>`; return; }
+    if (!d.reachable || d.distance < 0) { out.innerHTML = `<span style="color:var(--rust)">Unreachable — every path is blocked</span>`; highlightPath([]); return; }
+    out.innerHTML = `<b style="color:var(--teal)">${d.distance} km</b> &nbsp;${(d.path || []).map(esc).join(' → ')}`;
+    highlightPath(d.path || []);
+  });
+}
 
-        function closeModal() {
-            document.getElementById('dispatch-modal').classList.add('hidden');
-        }
+/* ---------- renderers ---------- */
+function renderMetrics(m) {
+  $('m-pending').textContent = m.pendingEmergencies || 0;
+  $('m-resolved').textContent = `${m.resolvedMissions || 0} resolved`;
+  $('m-affected').textContent = fmt(m.totalAffected);
+  $('m-medical').textContent = `${fmt(m.totalMedical)} need care`;
+  $('m-teams').innerHTML = `${m.availableTeams || 0} <small>/ ${m.totalTeams || 0}</small>`;
+  $('m-transport').textContent = `${m.availableTransports || 0} / ${m.totalTransports || 0} transport`;
+  const pct = m.destinationsCapacity ? Math.round(m.destinationsOccupancy / m.destinationsCapacity * 100) : 0;
+  $('m-beds').textContent = pct + '%';
+  $('m-beds-bar').style.width = Math.min(pct, 100) + '%';
+  $('m-beds-sub').textContent = `${fmt(m.destinationsOccupancy)} / ${fmt(m.destinationsCapacity)}`;
+  $('m-blocked').textContent = m.blockedRoads || 0;
+  $('m-locs').textContent = `${m.totalLocations || 0} locations`;
+  $('tag-pending').textContent = `${m.pendingEmergencies || 0} pending`;
+  $('tag-top').textContent = m.pendingEmergencies ? `top ${Number(m.maxPriorityScore).toFixed(2)}` : 'queue clear';
+}
+function renderQueue() {
+  const q = [...state.emergencies].sort((a, b) => b.priorityScore - a.priorityScore);
+  $('queue-meta').textContent = `max-heap · ${q.length}`;
+  if (!q.length) { $('queue-body').innerHTML = '<div class="empty hatch">No pending emergencies</div>'; return; }
+  $('queue-body').innerHTML = `<table><thead><tr><th>#</th><th>Location</th><th>Hazard</th><th class="num">People</th><th class="num">Need care</th><th class="num">Score</th></tr></thead><tbody>${
+    q.map((e, i) => `<tr class="${i === 0 ? 'top' : ''}"><td class="mono" style="color:var(--muted)">${String(i + 1).padStart(2, '0')}</td>
+      <td>${esc(e.location)}</td><td>${esc(e.hazardType)}</td><td class="num">${fmt(e.affectedPeople)}</td><td class="num">${fmt(e.peopleNeedingMedical)}</td>
+      <td class="num"><span class="score"><i><b style="width:${Math.min(100, e.priorityScore * 10)}%"></b></i>${e.priorityScore.toFixed(2)}</span></td></tr>`).join('')
+  }</tbody></table>`;
+}
+function renderResources() {
+  const b = $('res-body');
+  if (state.tab === 'teams') {
+    b.innerHTML = state.teams.length ? `<table><thead><tr><th>Team</th><th>Base</th><th class="num">Capacity</th><th>Gear</th><th>Status</th></tr></thead><tbody>${
+      state.teams.map(t => `<tr><td>${esc(t.name)}</td><td class="mono" style="font-size:12px">${esc(t.locationName)}</td><td class="num">${t.capacity}</td>
+        <td>${t.medicalKit ? '<span class="gear">MED</span>' : ''}${t.boatAvailable ? '<span class="gear">BOAT</span>' : ''}</td>
+        <td><span class="state ${t.available ? '' : 'busy'}">${t.available ? 'STANDBY' : 'DEPLOYED'}</span></td></tr>`).join('')}</tbody></table>` : '<div class="empty">No teams</div>';
+  } else if (state.tab === 'transport') {
+    b.innerHTML = state.transports.length ? `<table><thead><tr><th>Vehicle</th><th class="num">Capacity</th><th>Terrain</th><th>Status</th></tr></thead><tbody>${
+      state.transports.map(t => `<tr><td>${esc(t.type)}</td><td class="num">${t.capacity}</td><td>${t.floodSuitable ? '<span class="gear">FLOOD-READY</span>' : '<span class="mono" style="font-size:11px;color:var(--muted)">ROAD</span>'}</td>
+        <td><span class="state ${t.available ? '' : 'busy'}">${t.available ? 'READY' : 'EN ROUTE'}</span></td></tr>`).join('')}</tbody></table>` : '<div class="empty">No transport</div>';
+  } else {
+    b.innerHTML = state.dests.length ? `<table><thead><tr><th>Facility</th><th>Location</th><th>Type</th><th class="num">Beds used</th><th style="width:120px"></th></tr></thead><tbody>${
+      state.dests.map(d => { const pct = d.capacity ? Math.round(d.currentOccupancy / d.capacity * 100) : 0;
+        return `<tr><td>${esc(d.name)}</td><td class="mono" style="font-size:12px">${esc(d.locationName)}</td><td>${d.medicalSupport ? '<span class="gear">TRAUMA</span>' : '<span class="mono" style="font-size:11px;color:var(--muted)">SHELTER</span>'}</td>
+        <td class="num">${fmt(d.currentOccupancy)} / ${fmt(d.capacity)}</td><td><div class="meter" style="margin:0"><i style="width:${Math.min(pct, 100)}%;${pct > 90 ? 'background:var(--rust)' : ''}"></i></div></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">No facilities</div>';
+  }
+}
+function renderMissions(logs) {
+  $('missions-meta').textContent = `${logs.length} logged`;
+  $('missions-body').innerHTML = logs.length ? `<table><thead><tr><th>Time</th><th>Ref</th><th>Location</th><th>Team</th><th>Destination</th><th class="num">Km</th></tr></thead><tbody>${
+    logs.map(m => `<tr><td class="mono" style="font-size:12px">${esc(m.timestamp)}</td><td class="mono" style="font-size:12px;color:var(--teal)">EM-${m.emergencyId}</td>
+      <td>${esc(m.location)} <span style="color:var(--muted);font-size:12px">· ${esc(m.hazard)} · ${fmt(m.affected)}</span></td><td>${esc(m.team)}</td><td>${esc(m.destination)}</td>
+      <td class="num">${m.distToEmergency} + ${m.distToDestination}</td></tr>`).join('')}</tbody></table>` : '<div class="empty hatch">No missions dispatched yet</div>';
+}
+function fillSelectors(locs) {
+  const opts = locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  ['r-from', 'r-to'].forEach((id, i) => {
+    const el = $(id), prev = el.value;
+    el.innerHTML = opts;
+    el.value = prev;
+    if (!el.value && locs[i]) el.value = locs[i].id;
+  });
+  $('loc-list').innerHTML = locs.map(l => `<option value="${esc(l.name)}">`).join('');
+  $('topo').textContent = `${locs.length} nodes · ${state.graph.edges.length} roads`;
+}
 
-        // Initialize on load
-        window.addEventListener('DOMContentLoaded', () => {
-            initNetwork();
-            // Start with intake accordion collapsed for a cleaner initial view
-            const reportBody = document.getElementById('report-body');
-            if (reportBody) reportBody.classList.add('hidden');
-            refreshAll();
-        });
-    </script>
+/* ---------- data ---------- */
+function refresh() {
+  return Promise.all([api('/api/metrics'), api('/api/queue'), api('/api/teams'), api('/api/transport'), api('/api/destinations'), api('/api/graph'), api('/api/history')])
+    .then(([m, q, t, tr, d, g, h]) => {
+      state.emergencies = q.emergencies || []; state.teams = t.teams || []; state.transports = tr.transports || [];
+      state.dests = d.destinations || []; state.graph = { locations: g.locations || [], edges: g.edges || [] };
+      renderMetrics(m); renderQueue(); renderResources(); renderMissions(h.history || []);
+      fillSelectors(state.graph.locations); drawGraph();
+    }).catch(() => {});
+}
+
+/* ---------- actions ---------- */
+function dispatchNext() {
+  const btn = $('dispatch-btn'), res = $('result');
+  btn.disabled = true; btn.textContent = 'Routing…';
+  return api('/api/process', {}).then(d => {
+    res.className = 'result show' + (d.error ? ' err' : '');
+    if (d.error) { res.textContent = d.error; if (state.auto) toggleAuto(); return; }
+    res.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+        <span class="label">Dispatch EM-${d.emergencyId} · ${esc(d.location)} · ${esc(d.hazard)} · ${esc(d.timestamp)}</span>
+        <span class="tag solid">dispatched</span></div>
+      <div class="grid">
+        <div><div class="label">Team</div><div class="big">${esc(d.team)}</div><div class="small">from ${esc(d.teamBase)}</div></div>
+        <div><div class="label">Transport</div><div class="big">${esc(d.transport)}</div><div class="small">${fmt(d.affected)} people · ${fmt(d.medical)} need care</div></div>
+        <div><div class="label">Destination</div><div class="big">${esc(d.destination)}</div><div class="small">beds ${fmt(d.destOccupancy)} / ${fmt(d.destCapacity)}</div></div>
+      </div>
+      <div class="legs">
+        <div class="leg"><span class="label">Base → incident</span><span class="path">${(d.pathEmergency || []).map(esc).join(' → ')}</span><span class="km">${d.routeToEmergency} km</span></div>
+        <div class="leg"><span class="label">Incident → hospital</span><span class="path">${(d.pathDestination || []).map(esc).join(' → ')}</span><span class="km">${d.routeToDestination} km</span></div>
+      </div>`;
+    return refresh().then(() => highlightPath([...(d.pathEmergency || []), ...(d.pathDestination || []).slice(1)]));
+  }).catch(() => { res.className = 'result show err'; res.textContent = 'Server unreachable.'; })
+    .finally(() => { btn.disabled = false; btn.textContent = 'Dispatch next'; });
+}
+function toggleAuto() {
+  const btn = $('auto-btn');
+  if (state.auto) { clearInterval(state.auto); state.auto = null; btn.classList.remove('on'); btn.textContent = 'Auto'; return; }
+  btn.classList.add('on'); btn.textContent = 'Auto · on';
+  const step = () => { if (!state.emergencies.length) { toggleAuto(); return; } dispatchNext(); };
+  step(); state.auto = setInterval(step, 3000);
+}
+function toggleIntake() {
+  const open = $('intake').classList.toggle('open');
+  $('intake-btn').textContent = open ? '× Cancel' : '+ Report incident';
+  if (open) $('in-loc').focus();
+}
+function reportIncident(ev) {
+  ev.preventDefault();
+  api('/api/emergencies', { location: $('in-loc').value.trim(), hazardType: $('in-haz').value, affectedPeople: $('in-aff').value, peopleNeedingMedical: $('in-med').value })
+    .then(d => { if (d.error) { $('result').className = 'result show err'; $('result').textContent = d.error; return; } ev.target.reset(); toggleIntake(); refresh(); });
+}
+function clearView() { nodes.clear(); edges.clear(); state.routeEdges.clear(); $('result').className = 'result'; $('edgebar').classList.remove('show'); $('r-out').textContent = 'Click a road on the map to block or clear it.'; }
+function loadScenario(name) {
+  if (!name) return;
+  api('/api/scenario', { scenario: name }).then(() => { clearView(); $('scenario').value = ''; refresh(); });
+}
+/* ---------- scenario import (text or Excel) ---------- */
+const LIMITS = { locations: 50, teams: 50, transport: 50, facilities: 50, emergencies: 100 };
+const SHEETS = [
+  { key: 'locations',   tag: 'LOCATIONS',    names: ['locations', 'location', 'nodes'],                        head: ['Name'] },
+  { key: 'roads',       tag: 'ROADS',        names: ['roads', 'road', 'edges'],                                head: ['From', 'To', 'Distance (km)'] },
+  { key: 'teams',       tag: 'TEAMS',        names: ['teams', 'team', 'rescue teams'],                         head: ['Name', 'Base location', 'Capacity', 'Medical kit (yes/no)', 'Boat (yes/no)'] },
+  { key: 'transport',   tag: 'TRANSPORT',    names: ['transport', 'transports', 'vehicles'],                   head: ['Type', 'Capacity', 'Flood suitable (yes/no)'] },
+  { key: 'facilities',  tag: 'DESTINATIONS', names: ['facilities', 'destinations', 'hospitals', 'shelters'],  head: ['Name', 'Location', 'Bed capacity', 'Medical support (yes/no)'] },
+  { key: 'emergencies', tag: 'EMERGENCIES',  names: ['emergencies', 'emergency', 'incidents'],                 head: ['Location', 'Hazard', 'Affected people', 'Need medical care'] },
+];
+let importMode = 'xlsx', xlsxScenario = null;
+
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload = () => ok(window.XLSX);
+    s.onerror = () => fail(new Error('Could not load the Excel reader (needs internet access once).'));
+    document.head.appendChild(s);
+  });
+}
+function openImport() { $('import').showModal(); syncImportButton(); loadXLSX().catch(() => {}); }
+function syncImportButton() {
+  const go = $('imp-go');
+  if (importMode === 'text') { go.disabled = false; $('imp-note').textContent = 'Replaces the current scenario'; return; }
+  go.disabled = !(xlsxScenario && xlsxScenario.ok);
+  $('imp-note').textContent = xlsxScenario ? (xlsxScenario.ok ? 'Replaces the current scenario' : 'Fix the errors above first') : 'Choose a workbook';
+}
+$('imp-tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  importMode = b.dataset.pane;
+  [...$('imp-tabs').children].forEach(x => x.classList.toggle('active', x === b));
+  $('pane-xlsx').classList.toggle('show', importMode === 'xlsx');
+  $('pane-text').classList.toggle('show', importMode === 'text');
+  syncImportButton();
+});
+
+const cell = v => String(v ?? '').replace(/[|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 49);
+const yes = v => /^(1|y|yes|true|x|✓)$/i.test(String(v ?? '').trim()) || v === true;
+const int = v => { const n = Number(String(v ?? '').trim()); return Number.isFinite(n) && n >= 0 ? Math.round(n) : NaN; };
+
+/* Turn a workbook into the server's scenario text, collecting problems as we go. */
+function workbookToScenario(wb) {
+  const issues = [], warn = m => issues.push({ m }), err = m => issues.push({ m, err: true });
+  const rows = {};
+  SHEETS.forEach(s => {
+    const name = wb.SheetNames.find(n => s.names.includes(n.trim().toLowerCase()));
+    if (!name) { rows[s.key] = null; return; }
+    const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true, blankrows: true });
+    rows[s.key] = data.slice(1).map((r, i) => ({ r, n: i + 2, sheet: name }))
+                     .filter(x => x.r.some(v => String(v).trim() !== ''));
+  });
+  if (SHEETS.every(s => rows[s.key] === null)) {
+    err(`No recognised sheets. Name them: ${SHEETS.map(s => s.names[0]).join(', ')}.`);
+    return { ok: false, issues, counts: {} };
+  }
+
+  // Locations: from the sheet, or derived from every place the other sheets mention.
+  const canon = new Map();               // lower-case name -> spelling used on the Locations sheet
+  const addLoc = name => { const k = name.toLowerCase(); if (!canon.has(k)) canon.set(k, name); };
+  if (rows.locations) {
+    rows.locations.forEach(({ r, n, sheet }) => {
+      const name = cell(r[0]);
+      if (!name) return;
+      if (canon.has(name.toLowerCase())) warn(`${sheet} row ${n}: duplicate "${name}" ignored`);
+      else addLoc(name);
+    });
+  } else {
+    const refs = [['roads', 0], ['roads', 1], ['teams', 1], ['facilities', 1], ['emergencies', 0]];
+    refs.forEach(([k, c]) => (rows[k] || []).forEach(({ r }) => { const v = cell(r[c]); if (v) addLoc(v); }));
+    warn(`No Locations sheet — using the ${canon.size} places named in the other sheets`);
+  }
+  const loc = (raw, where) => {
+    const v = cell(raw);
+    if (!v) { warn(`${where}: location is empty — row skipped`); return null; }
+    const hit = canon.get(v.toLowerCase());
+    if (!hit) warn(`${where}: "${v}" is not in Locations — row skipped`);
+    return hit || null;
+  };
+  const need = (val, label, where) => { if (Number.isNaN(val)) { warn(`${where}: ${label} must be a whole number — row skipped`); return false; } return true; };
+
+  const out = { locations: [...canon.values()], roads: [], teams: [], transport: [], facilities: [], emergencies: [] };
+  (rows.roads || []).forEach(({ r, n, sheet }) => {
+    const w = `${sheet} row ${n}`, a = loc(r[0], w), b = a && loc(r[1], w), d = int(r[2]);
+    if (!a || !b || !need(d, 'distance', w)) return;
+    if (d === 0) { warn(`${w}: distance 0 — row skipped`); return; }
+    if (a === b) { warn(`${w}: road from a place to itself — row skipped`); return; }
+    out.roads.push(`${a} | ${b} | ${d}`);
+  });
+  (rows.teams || []).forEach(({ r, n, sheet }) => {
+    const w = `${sheet} row ${n}`, name = cell(r[0]), base = loc(r[1], w), cap = int(r[2]);
+    if (!name) { warn(`${w}: team name is empty — row skipped`); return; }
+    if (!base || !need(cap, 'capacity', w)) return;
+    out.teams.push(`${name} | ${base} | ${cap} | ${yes(r[3]) ? 'yes' : 'no'} | ${yes(r[4]) ? 'yes' : 'no'}`);
+  });
+  (rows.transport || []).forEach(({ r, n, sheet }) => {
+    const w = `${sheet} row ${n}`, type = cell(r[0]), cap = int(r[1]);
+    if (!type) { warn(`${w}: vehicle type is empty — row skipped`); return; }
+    if (!need(cap, 'capacity', w)) return;
+    out.transport.push(`${type} | ${cap} | ${yes(r[2]) ? 'yes' : 'no'}`);
+  });
+  (rows.facilities || []).forEach(({ r, n, sheet }) => {
+    const w = `${sheet} row ${n}`, name = cell(r[0]), at = loc(r[1], w), cap = int(r[2]);
+    if (!name) { warn(`${w}: facility name is empty — row skipped`); return; }
+    if (!at || !need(cap, 'bed capacity', w)) return;
+    out.facilities.push(`${name} | ${at} | ${cap} | ${yes(r[3]) ? 'yes' : 'no'}`);
+  });
+  (rows.emergencies || []).forEach(({ r, n, sheet }) => {
+    const w = `${sheet} row ${n}`, at = loc(r[0], w), haz = cell(r[1]) || 'Flood', ppl = int(r[2]), med = int(r[3] === '' ? 0 : r[3]);
+    if (!at || !need(ppl, 'affected people', w) || !need(med, 'medical count', w)) return;
+    if (ppl === 0) { warn(`${w}: 0 affected people — row skipped`); return; }
+    if (med > ppl) warn(`${w}: more people need care (${med}) than are affected (${ppl})`);
+    out.emergencies.push(`${at} | ${haz} | ${ppl} | ${med}`);
+  });
+
+  if (!out.locations.length) err('At least one location is required.');
+  Object.entries(LIMITS).forEach(([k, max]) => { if (out[k].length > max) err(`${out[k].length} ${k} — the engine supports at most ${max}.`); });
+  SHEETS.filter(s => s.key !== 'locations' && rows[s.key] === null).forEach(s => warn(`No ${s.names[0]} sheet — section left empty`));
+
+  const text = SHEETS.map(s => `[${s.tag}]\n${out[s.key].join('\n')}`).join('\n\n') + '\n';
+  if (new URLSearchParams({ content: text }).toString().length > 60000) err('Workbook is too large to send in one import.');
+  const counts = Object.fromEntries(SHEETS.map(s => [s.key, out[s.key].length]));
+  return { ok: !issues.some(i => i.err), issues, counts, text };
+}
+
+function showPreview(res) {
+  const p = $('xlsx-preview');
+  const errs = res.issues.filter(i => i.err).length, warns = res.issues.length - errs;
+  p.innerHTML = (res.counts.locations !== undefined ? `<div class="counts">${SHEETS.map(s => `<div><span class="label">${s.key}</span><b>${res.counts[s.key]}</b></div>`).join('')}</div>` : '') +
+    (res.issues.length ? `<ul class="issues">${res.issues.map(i => `<li class="${i.err ? 'err' : ''}">${esc(i.m)}</li>`).join('')}</ul>` : '') +
+    `<div class="label" style="margin-top:8px">${errs ? errs + ' error(s)' : 'Ready to import'}${warns ? ' · ' + warns + ' note(s)' : ''}</div>`;
+  p.classList.add('show');
+}
+function readWorkbook(file) {
+  if (!file) return;
+  $('xlsx-name').textContent = file.name;
+  xlsxScenario = null; syncImportButton();
+  Promise.all([loadXLSX(), file.arrayBuffer()])
+    .then(([X, buf]) => { xlsxScenario = workbookToScenario(X.read(buf, { type: 'array' })); })
+    .catch(e => { xlsxScenario = { ok: false, counts: {}, issues: [{ m: e.message.includes('Excel reader') ? e.message : 'Could not read this file as a spreadsheet.', err: true }] }; })
+    .finally(() => { showPreview(xlsxScenario); syncImportButton(); });
+}
+$('xlsx-file').addEventListener('change', e => readWorkbook(e.target.files[0]));
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => readWorkbook(e.dataTransfer.files[0]));
+
+/* Template = the current scenario as a workbook, so it can be edited in Excel and re-imported. */
+function buildTemplate(X) {
+    const g = state.graph, has = g.locations.length > 0;
+    const data = {
+      locations: has ? g.locations.map(l => [l.name]) : [['Metro_City'], ['Harbor_Bay'], ['North_Hill']],
+      roads: has ? g.edges.map(e => [e.fromName, e.toName, e.distance]) : [['Metro_City', 'Harbor_Bay', 25], ['Metro_City', 'North_Hill', 15]],
+      teams: has ? state.teams.map(t => [t.name, t.locationName, t.capacity, t.medicalKit ? 'yes' : 'no', t.boatAvailable ? 'yes' : 'no']) : [['Rapid Task Force', 'Metro_City', 150, 'yes', 'yes']],
+      transport: has ? state.transports.map(t => [t.type, t.capacity, t.floodSuitable ? 'yes' : 'no']) : [['Air Force Chopper', 60, 'yes']],
+      facilities: has ? state.dests.map(d => [d.name, d.locationName, d.capacity, d.medicalSupport ? 'yes' : 'no']) : [['Central Hospital', 'Metro_City', 500, 'yes']],
+      emergencies: has ? state.emergencies.map(e => [e.location, e.hazardType, e.affectedPeople, e.peopleNeedingMedical]) : [['Harbor_Bay', 'Flood', 240, 110]],
+    };
+    const wb = X.utils.book_new();
+    SHEETS.forEach(s => {
+      const ws = X.utils.aoa_to_sheet([s.head, ...data[s.key]]);
+      ws['!cols'] = s.head.map(h => ({ wch: Math.max(14, h.length + 2) }));
+      X.utils.book_append_sheet(wb, ws, s.names[0][0].toUpperCase() + s.names[0].slice(1));
+    });
+    return wb;
+}
+function downloadTemplate() {
+  loadXLSX().then(X => X.writeFile(buildTemplate(X), 'idrs_scenario.xlsx'))
+    .catch(e => { $('xlsx-name').textContent = e.message; });
+}
+
+function importScenario() {
+  const content = importMode === 'text' ? $('import-text').value.trim() : (xlsxScenario && xlsxScenario.ok ? xlsxScenario.text : '');
+  if (!content) return;
+  const go = $('imp-go'); go.disabled = true; go.textContent = 'Importing…';
+  api('/api/scenario', { content }).then(() => {
+    $('import').close(); clearView(); refresh();
+    xlsxScenario = null; $('xlsx-preview').classList.remove('show'); $('xlsx-file').value = '';
+    $('xlsx-name').textContent = 'Locations · Roads · Teams · Transport · Facilities · Emergencies';
+  }).finally(() => { go.textContent = 'Import'; syncImportButton(); });
+}
+let resetArmed = null;
+function resetFleet() {
+  const btn = $('reset-btn');
+  if (!resetArmed) { btn.textContent = 'Confirm?'; btn.classList.add('on'); resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = 'Reset'; btn.classList.remove('on'); }, 3000); return; }
+  clearTimeout(resetArmed); resetArmed = null; btn.textContent = 'Reset'; btn.classList.remove('on');
+  api('/api/reset', {}).then(() => { state.routeEdges.clear(); refresh(); });
+}
+
+/* ---------- chrome ---------- */
+$('res-tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.tab = b.dataset.tab; [...$('res-tabs').children].forEach(x => x.classList.toggle('active', x === b)); renderResources();
+});
+const navLinks = [...document.querySelectorAll('#nav a')];
+const sectionIds = ['overview', 'queue', 'network-sec', 'resources', 'missions'];
+function spy() {
+  let current = sectionIds[0];
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+  if (atBottom) current = sectionIds[sectionIds.length - 1];
+  else sectionIds.forEach(id => { if ($(id).getBoundingClientRect().top < 140) current = id; });
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+}
+window.addEventListener('scroll', spy, { passive: true });
+spy();
+function tick() {
+  const d = new Date();
+  $('clock').textContent = d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase() + ' · ' + d.toTimeString().slice(0, 5);
+}
+tick(); setInterval(tick, 15000);
+refresh();
+</script>
 </body>
 </html>

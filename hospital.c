@@ -25,11 +25,13 @@ int addDestination(int id, const char* name, int location, int capacity, int cur
     return id;
 }
 
+/* Greedy choice: the nearest reachable, accessible facility whose free beds
+   (capacity - occupancy) cover every affected person, and which has medical
+   support when the medical ratio is >= 0.40. Returns NULL if no facility
+   qualifies, so a dispatch never pushes a hospital past its capacity. */
 Destination* selectDestination(Emergency e, int emergencyLocation) {
     Destination* bestDest = NULL;
     int shortestDist = INF;
-    Destination* fallbackDest = NULL;
-    int maxRemaining = -1;
     
     int needsMedical = 0;
     if (e.affectedPeople > 0) {
@@ -42,7 +44,7 @@ Destination* selectDestination(Emergency e, int emergencyLocation) {
         if (needsMedical && !destinations[i].medicalSupport) continue;
         
         int remainingCapacity = destinations[i].capacity - destinations[i].currentOccupancy;
-        if (remainingCapacity <= 0) continue;
+        if (remainingCapacity < e.affectedPeople) continue;
         
         int dist = 0;
         if (emergencyLocation >= 0) {
@@ -51,20 +53,12 @@ Destination* selectDestination(Emergency e, int emergencyLocation) {
             if (dist == INF) continue;
         }
         
-        if (remainingCapacity > maxRemaining) {
-            maxRemaining = remainingCapacity;
-            fallbackDest = &destinations[i];
-        }
-        
-        if (remainingCapacity >= e.affectedPeople) {
-            if (dist < shortestDist) {
-                shortestDist = dist;
-                bestDest = &destinations[i];
-            }
+        if (dist < shortestDist) {
+            shortestDist = dist;
+            bestDest = &destinations[i];
         }
     }
-    if (bestDest) return bestDest;
-    return fallbackDest;
+    return bestDest;
 }
 
 void resetDestinationsOccupancy(void) {

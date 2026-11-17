@@ -60,6 +60,8 @@ RescueTeam* selectRescueTeam(Emergency e, int emergencyLocId) {
     for (int i = 0; i < numTeams; i++) {
         if (!teams[i].available) continue;
         if (needsMedical && !teams[i].medicalKit) continue;
+        /* Hard constraint: water hazards (Flood, Flash Flood, Tsunami) need a rescue boat. */
+        if (isWaterHazard && !teams[i].boatAvailable) continue;
         
         int dist = 0;
         if (emergencyLocId >= 0) {
