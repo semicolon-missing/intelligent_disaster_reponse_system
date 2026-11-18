@@ -7,7 +7,7 @@
 
 An advanced, high-performance C-based algorithmic emergency decision-support and dispatch command system. Designed to assist emergency management authorities in prioritizing simultaneous crisis incidents, dispatching optimal rescue teams and transport vehicles, routing evacuations around flooded or blocked roads using graph algorithms, and directing victims to medical centers with real-time capacity tracking.
 
-Includes **both** an interactive 24-option console CLI (`cli.exe`) and a tactical web command center (`web.exe` at `http://localhost:8080`) backed by persistent SQLite storage.
+Includes **both** an interactive 25-option console CLI (`cli.exe`) and a tactical web command center (`web.exe` at `http://localhost:8080`) backed by persistent SQLite storage.
 
 ---
 
@@ -153,20 +153,30 @@ The embedded Winsock2 web server serves a JSON REST API on port `8080`:
 ## Building and Running
 
 ### Prerequisites
-- **GCC** (MSYS2 / MinGW-w64 on Windows, or standard GCC on Linux)
-- **SQLite3** library (`-lsqlite3`)
-- **Winsock2** on Windows (`-lws2_32`)
+- **GCC** (MinGW / MinGW-w64 / MSYS2 on Windows, or standard GCC on Linux/macOS)
+- **SQLite3**: optional on Windows. If no system SQLite is installed, `build.bat` downloads the official
+  SQLite amalgamation once into `third_party/sqlite/` (git-ignored) and compiles it in.
+  On Linux install it with `sudo apt install libsqlite3-dev`.
+- **Winsock2** on Windows (`-lws2_32`, ships with MinGW)
+- **ncurses** for the terminal dashboard (`tui`), Linux/macOS only: `sudo apt install libncurses-dev`
 
 ### 1. One-Click Build (Windows)
 Double-click `build.bat` or run:
 ```cmd
 build.bat
 ```
+This produces `cli.exe` and `web.exe`.
 
 ### 2. Using Makefile
 ```bash
-make
+make            # Linux/macOS: builds cli, web and tui.  Windows (mingw32-make): cli.exe and web.exe
+make web        # just the web server
+make graph_test # standalone self-test of the graph module (no database needed)
 ```
+
+> Run the programs **from the project root folder**: the web server serves `public/index.html`
+> and the scenario loader reads `scenarios/` relative to the current directory.
+> The SQLite database `disaster_v2.db` is created automatically on first run; delete it to start fresh.
 
 ### 3. Launching the Tactical Web Command Center
 ```cmd
@@ -182,7 +192,14 @@ http://localhost:8080
 - Auto-simulation mode to play through emergencies continuously.
 - Live mission audit timeline.
 
-### 4. Launching the Interactive Terminal CLI
+### 4. Launching the ncurses Terminal Dashboard (Linux/macOS)
+```bash
+./tui
+```
+Keys: `D`/`Space` dispatch, `N` new alert, `B` block road, `P` shortest route, `C` connectivity,
+`S` scenarios, `R` reset, `Tab`/`1`-`5` switch view, `?` help, `Q` quit.
+
+### 5. Launching the Interactive Terminal CLI
 ```cmd
 cli.exe
 ```
@@ -242,6 +259,7 @@ intelligent_disaster_reponse_system/
 ├── httpserver.c / .h         # Winsock2 non-blocking HTTP file & REST server
 ├── server_main.c             # Web server entry point & 20 REST API endpoints
 ├── main.c                    # Interactive 25-menu console CLI application
+├── tui_main.c                # ncurses tactical terminal dashboard (Linux/macOS)
 ├── public/
 │   └── index.html            # Tactical HUD Web UI with Vis.js interactive network
 ├── scenarios/                # Pre-configured & custom scenario definitions (.txt)

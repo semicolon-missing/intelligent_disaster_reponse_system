@@ -11,6 +11,57 @@
 MaxHeap emergencyQueue;
 char lastRescuePlan[4096] = "No plan generated yet.\n";
 
+/* ---------------------------------------------------------
+   Line-based input helpers. Reading whole lines (instead of
+   raw scanf) lets names contain spaces and keeps one bad
+   keystroke from leaving junk in stdin or ending the program.
+   All return 0 on end-of-input (Ctrl+Z / Ctrl+D), 1 otherwise.
+   --------------------------------------------------------- */
+static int readLine(const char *prompt, char *buf, size_t size) {
+    if (prompt) { printf("%s", prompt); fflush(stdout); }
+    if (!fgets(buf, (int)size, stdin)) { buf[0] = '\0'; return 0; }
+    size_t len = strlen(buf);
+    if (len > 0 && buf[len - 1] != '\n' && !feof(stdin)) {
+        int c;                                    /* line too long: drop the rest */
+        while ((c = getchar()) != '\n' && c != EOF) { }
+    }
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' ||
+                       buf[len - 1] == ' '  || buf[len - 1] == '\t')) buf[--len] = '\0';
+    char *start = buf;
+    while (*start == ' ' || *start == '\t') start++;
+    if (start != buf) memmove(buf, start, strlen(start) + 1);
+    return 1;
+}
+
+/* Reads exactly `count` integers from one line, re-prompting until valid. */
+static int readInts(const char *prompt, int count, int *out) {
+    char line[256];
+    for (;;) {
+        if (!readLine(prompt, line, sizeof(line))) return 0;
+        int got = 0, used = 0;
+        const char *p = line;
+        while (*p == ',') p++;
+        while (got < count && sscanf(p, "%d%n", &out[got], &used) == 1) {
+            got++;
+            p += used;
+            while (*p == ' ' || *p == '\t' || *p == ',') p++;
+        }
+        if (got == count && *p == '\0') return 1;
+        printf("  Invalid input: please enter %d whole number%s.\n", count, count > 1 ? "s" : "");
+    }
+}
+
+/* Reads a non-empty text value, re-prompting on blank input. */
+static int readText(const char *prompt, char *buf, size_t size) {
+    for (;;) {
+        if (!readLine(prompt, buf, size)) return 0;
+        if (buf[0] != '\0') return 1;
+        printf("  Value cannot be empty.\n");
+    }
+}
+
+static int isValidLocationId(int id) { return id >= 0 && id < numLocations; }
+
 void printMenu() {
     printf("\n=======================================================\n");
     printf("   INTELLIGENT DISASTER RESPONSE SYSTEM (CLI)\n");
@@ -70,7 +121,15 @@ int main() {
     int choice;
     while (1) {
         printMenu();
-        if (scanf("%d", &choice) != 1) break;
+        char choiceLine[64];
+        if (!readLine(NULL, choiceLine, sizeof(choiceLine))) break;   /* end of input */
+        char *endp;
+        long parsed = strtol(choiceLine, &endp, 10);
+        if (choiceLine[0] == '\0' || *endp != '\0' || parsed < 0 || parsed > 25) {
+            printf("Invalid choice. Please enter a number between 0 and 25.\n");
+            continue;
+        }
+        choice = (int)parsed;
         
         if (choice == 0) {
             printf("\nExiting Disaster Response System. Stay safe!\n");
@@ -81,8 +140,11 @@ int main() {
         }
         else if (choice == 2) {
             char name[50];
-            printf("Enter Location Name: ");
-            scanf("%49s", name);
+            if (!readText("Enter Location Name: ", name, sizeof(name))) break;
+            if (getLocationId(name) != -1) {
+                printf("Location '%s' already exists.\n", name);
+                continue;
+            }
             int id = addLocation(-1, name);
             if (id >= 0) {
                 dbAddLocation(id, name);
@@ -93,39 +155,41 @@ int main() {
             printGraph();
         }
         else if (choice == 4) {
-            int u, v, d;
-            printf("Enter From Location ID, To Location ID, Distance (km): ");
-            scanf("%d %d %d", &u, &v, &d);
-            addRoad(u, v, d);
-            dbAddRoad(u, v, d);
-            printf("Road between %s (%d) and %s (%d) set to %d km.\n", getLocationName(u), u, getLocationName(v), v, d);
+            int in[3];
+            if (!readInts("Enter From Location ID, To Location ID, Distance (km): ", 3, in)) break;
+            int u = in[0], v = in[1], d = in[2];
+            if (addRoad(u, v, d) == 0) {          /* only persist roads the graph accepted */
+                dbAddRoad(u, v, d);
+                printf("Road between %s (%d) and %s (%d) set to %d km.\n", getLocationName(u), u, getLocationName(v), v, d);
+            }
         }
         else if (choice == 5) {
-            int u, v;
-            printf("Enter Start Location ID, Destination Location ID: ");
-            scanf("%d %d", &u, &v);
+            int in[2];
+            if (!readInts("Enter Start Location ID, Destination Location ID: ", 2, in)) break;
+            int u = in[0], v = in[1];
+            if (!isValidLocationId(u) || !isValidLocationId(v)) {
+                printf("Error: Location IDs must be between 0 and %d.\n", numLocations - 1);
+                continue;
+            }
             int reachable = isReachable(u, v);
             printf("Connectivity Status: %s -> %s is %s\n", getLocationName(u), getLocationName(v), reachable ? "REACHABLE (CONNECTED)" : "DISCONNECTED (UNREACHABLE)");
             printf("Running BFS traversal from %s:\n", getLocationName(u));
             bfs(u);
         }
         else if (choice == 6) {
-            int u, v;
-            printf("Enter Start Location ID, Destination Location ID: ");
-            scanf("%d %d", &u, &v);
-            dijkstra(u, v);
+            int in[2];
+            if (!readInts("Enter Start Location ID, Destination Location ID: ", 2, in)) break;
+            dijkstra(in[0], in[1]);
         }
         else if (choice == 7) {
-            int u, v;
-            printf("Enter From Location ID, To Location ID to BLOCK: ");
-            scanf("%d %d", &u, &v);
-            blockRoad(u, v);
+            int in[2];
+            if (!readInts("Enter From Location ID, To Location ID to BLOCK: ", 2, in)) break;
+            blockRoad(in[0], in[1]);
         }
         else if (choice == 8) {
-            int u, v;
-            printf("Enter From Location ID, To Location ID to UNBLOCK: ");
-            scanf("%d %d", &u, &v);
-            unblockRoad(u, v);
+            int in[2];
+            if (!readInts("Enter From Location ID, To Location ID to UNBLOCK: ", 2, in)) break;
+            unblockRoad(in[0], in[1]);
         }
         else if (choice == 9) {
             printf("\n---- Rescue Teams Fleet (%d registered) ----\n", numTeams);
@@ -137,12 +201,19 @@ int main() {
         }
         else if (choice == 10) {
             char name[50];
-            int loc, cap, med, boat;
-            printf("Enter Team Name: ");
-            scanf("%49s", name);
-            printf("Enter Base Location ID, Capacity, MedicalKit (0/1), Boat (0/1): ");
-            scanf("%d %d %d %d", &loc, &cap, &med, &boat);
+            int in[4];
+            if (!readText("Enter Team Name: ", name, sizeof(name))) break;
+            if (!readInts("Enter Base Location ID, Capacity, MedicalKit (0/1), Boat (0/1): ", 4, in)) break;
+            int loc = in[0], cap = in[1], med = in[2] ? 1 : 0, boat = in[3] ? 1 : 0;
+            if (!isValidLocationId(loc) || cap <= 0) {
+                printf("Error: Base location must be 0..%d and capacity must be positive.\n", numLocations - 1);
+                continue;
+            }
             int id = addRescueTeam(-1, name, loc, cap, 1, med, boat);
+            if (id < 0) {
+                printf("Error: Maximum number of rescue teams (%d) reached.\n", MAX_TEAMS);
+                continue;
+            }
             RescueTeam t = {id, "", loc, cap, 1, med, boat};
             snprintf(t.name, sizeof(t.name), "%s", name);
             dbAddRescueTeam(t);
@@ -158,12 +229,19 @@ int main() {
         }
         else if (choice == 12) {
             char type[50];
-            int cap, flood;
-            printf("Enter Transport Type Name (e.g. Helicopter, Boat): ");
-            scanf("%49s", type);
-            printf("Enter Capacity, FloodSuitable (0/1): ");
-            scanf("%d %d", &cap, &flood);
+            int in[2];
+            if (!readText("Enter Transport Type Name (e.g. Helicopter, Boat): ", type, sizeof(type))) break;
+            if (!readInts("Enter Capacity, FloodSuitable (0/1): ", 2, in)) break;
+            int cap = in[0], flood = in[1] ? 1 : 0;
+            if (cap <= 0) {
+                printf("Error: Capacity must be positive.\n");
+                continue;
+            }
             int id = addTransport(-1, type, cap, 1, flood);
+            if (id < 0) {
+                printf("Error: Maximum number of transports (%d) reached.\n", MAX_TRANSPORTS);
+                continue;
+            }
             Transport tr = {id, "", cap, 1, flood};
             snprintf(tr.type, sizeof(tr.type), "%s", type);
             dbAddTransport(tr);
@@ -181,12 +259,19 @@ int main() {
         }
         else if (choice == 14) {
             char name[50];
-            int loc, cap, med;
-            printf("Enter Destination/Hospital Name: ");
-            scanf("%49s", name);
-            printf("Enter Location ID, Total Capacity, MedicalSupport (0/1): ");
-            scanf("%d %d %d", &loc, &cap, &med);
+            int in[3];
+            if (!readText("Enter Destination/Hospital Name: ", name, sizeof(name))) break;
+            if (!readInts("Enter Location ID, Total Capacity, MedicalSupport (0/1): ", 3, in)) break;
+            int loc = in[0], cap = in[1], med = in[2] ? 1 : 0;
+            if (!isValidLocationId(loc) || cap <= 0) {
+                printf("Error: Location must be 0..%d and capacity must be positive.\n", numLocations - 1);
+                continue;
+            }
             int id = addDestination(-1, name, loc, cap, 0, med, 1);
+            if (id < 0) {
+                printf("Error: Maximum number of destinations (%d) reached.\n", MAX_DESTINATIONS);
+                continue;
+            }
             Destination d = {id, "", loc, cap, 0, med, 1};
             snprintf(d.name, sizeof(d.name), "%s", name);
             dbAddDestination(d);
@@ -217,9 +302,9 @@ int main() {
             printf("Odisha Super Cyclone Scenario Loaded successfully.\n");
         }
         else if (choice == 20) {
-            char file[128];
-            printf("Enter scenario filepath (default: scenarios/sample_natural_disasters.txt): ");
-            scanf("%127s", file);
+            char file[256];
+            if (!readLine("Enter scenario filepath (default: scenarios/sample_natural_disasters.txt): ", file, sizeof(file))) break;
+            if (file[0] == '\0') snprintf(file, sizeof(file), "%s", "scenarios/sample_natural_disasters.txt");
             if (importScenario(file) == 0) {
                 printf("Scenario successfully imported from '%s'.\n", file);
             } else {
@@ -236,17 +321,31 @@ int main() {
         else if (choice == 22) {
             Emergency e;
             memset(&e, 0, sizeof(e));
-            printf("Enter Location Name: ");
-            scanf("%49s", e.location);
-            printf("Enter Hazard Type (Flood, Flash Flood, Landslide, Cyclone, Fire, Earthquake, etc.): ");
-            scanf("%49s", e.hazardType);
-            printf("Enter Total Affected People: ");
-            scanf("%d", &e.affectedPeople);
-            printf("Enter Number of People Needing Critical Medical Attention: ");
-            scanf("%d", &e.peopleNeedingMedical);
+            if (emergencyQueue.size >= MAX_EMERGENCIES) {
+                printf("Error: Priority queue is full (%d emergencies). Dispatch some first.\n", MAX_EMERGENCIES);
+                continue;
+            }
+            char locName[50];
+            if (!readText("Enter Location Name: ", locName, sizeof(locName))) break;
+            int locId = getLocationId(locName);
+            if (locId == -1) {
+                printf("Error: '%s' is not a known location. Use option 1 to list locations.\n", locName);
+                continue;
+            }
+            snprintf(e.location, sizeof(e.location), "%s", getLocationName(locId));  /* canonical spelling */
+            if (!readText("Enter Hazard Type (Flood, Flash Flood, Landslide, Cyclone, Fire, Earthquake, etc.): ",
+                          e.hazardType, sizeof(e.hazardType))) break;
+            int people, medical;
+            if (!readInts("Enter Total Affected People: ", 1, &people)) break;
+            if (!readInts("Enter Number of People Needing Critical Medical Attention: ", 1, &medical)) break;
+            if (people <= 0 || medical < 0 || medical > people) {
+                printf("Error: Affected people must be positive and medical cases must be 0..affected.\n");
+                continue;
+            }
+            e.affectedPeople = people;
+            e.peopleNeedingMedical = medical;
 
-            static int e_id_counter = 700;
-            e.id = e_id_counter++;
+            e.id = dbNextEmergencyId(700);   /* never reuses an id already in the database */
             e.status = STATUS_PENDING;
             e.priorityScore = calculatePriority(e);
             dbAddEmergency(e);

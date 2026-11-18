@@ -33,6 +33,13 @@ typedef struct {
 static MissionLog missionHistory[MAX_MISSION_LOGS];
 static int numMissionLogs = 0;
 
+/* Mission history and the last plan describe the current simulation run;
+   forget them when a new scenario is loaded or the simulation is reset. */
+static void clearMissionHistory(void) {
+    numMissionLogs = 0;
+    snprintf(lastRescuePlan, sizeof(lastRescuePlan), "%s", "{\"message\": \"No plan generated yet\"}");
+}
+
 static void url_decode(char *dst, const char *src) {
     char a, b;
     while (*src) {
@@ -79,6 +86,16 @@ static int get_param(const char *data, const char *key, char *val, int maxLen) {
     url_decode(val, raw);
     val[maxLen - 1] = '\0';
     free(raw);
+
+    /* Values are later echoed inside JSON strings, so neutralise the characters
+       that would break them. Scenario "content" keeps its line breaks. */
+    int keepNewlines = (strcmp(key, "content") == 0);
+    for (char *c = val; *c; c++) {
+        if (*c == '"') *c = '\'';
+        else if (*c == '\\') *c = '/';
+        else if ((unsigned char)*c < 0x20 &&
+                 !(keepNewlines && (*c == '\n' || *c == '\r' || *c == '\t'))) *c = ' ';
+    }
     return 1;
 }
 
@@ -197,15 +214,25 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
             snprintf(res, resSize, "{\"error\":\"Location is required\"}");
             return;
         }
+        int locId = getLocationId(locName);
+        if (locId == -1) {
+            snprintf(res, resSize, "{\"error\":\"Unknown location '%s': pick one of the map locations\"}", locName);
+            return;
+        }
+        if (emergencyQueue.size >= MAX_EMERGENCIES) {
+            snprintf(res, resSize, "{\"error\":\"Priority queue is full (%d emergencies); dispatch some first\"}", MAX_EMERGENCIES);
+            return;
+        }
         if (hazardType[0] == '\0') strcpy(hazardType, "Flood");
 
         e.affectedPeople = atoi(affStr);
         if (e.affectedPeople <= 0) e.affectedPeople = 50;
         e.peopleNeedingMedical = atoi(medStr);
+        if (e.peopleNeedingMedical < 0) e.peopleNeedingMedical = 0;
+        if (e.peopleNeedingMedical > e.affectedPeople) e.peopleNeedingMedical = e.affectedPeople;
 
-        static int e_id_gen = 600;
-        e.id = e_id_gen++;
-        snprintf(e.location, sizeof(e.location), "%s", locName);
+        e.id = dbNextEmergencyId(600);   /* never reuses an id already in the database */
+        snprintf(e.location, sizeof(e.location), "%s", getLocationName(locId));  /* canonical spelling */
         snprintf(e.hazardType, sizeof(e.hazardType), "%s", hazardType);
         e.priorityScore = calculatePriority(e);
         e.status = STATUS_PENDING;
@@ -358,9 +385,16 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         get_param(combinedParams, "boatAvailable", boatStr, sizeof(boatStr));
 
         int locId = parseLocationParam(locStr);
-        if (locId < 0) locId = 0;
+        if (locId < 0) {
+            snprintf(res, resSize, "{\"error\":\"Unknown base location for team\"}");
+            return;
+        }
 
         int id = addRescueTeam(-1, name[0] ? name : "Quick Response Team", locId, atoi(capStr) > 0 ? atoi(capStr) : 100, 1, atoi(medStr), atoi(boatStr));
+        if (id < 0) {
+            snprintf(res, resSize, "{\"error\":\"Maximum number of rescue teams reached\"}");
+            return;
+        }
         RescueTeam t = {id, "", locId, atoi(capStr) > 0 ? atoi(capStr) : 100, 1, atoi(medStr), atoi(boatStr)};
         snprintf(t.name, sizeof(t.name), "%s", name[0] ? name : "Quick Response Team");
         dbAddRescueTeam(t);
@@ -385,6 +419,10 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         get_param(combinedParams, "floodSuitable", floodStr, sizeof(floodStr));
 
         int id = addTransport(-1, type[0] ? type : "Emergency Van", atoi(capStr) > 0 ? atoi(capStr) : 50, 1, atoi(floodStr));
+        if (id < 0) {
+            snprintf(res, resSize, "{\"error\":\"Maximum number of transports reached\"}");
+            return;
+        }
         Transport tr = {id, "", atoi(capStr) > 0 ? atoi(capStr) : 50, 1, atoi(floodStr)};
         snprintf(tr.type, sizeof(tr.type), "%s", type[0] ? type : "Emergency Van");
         dbAddTransport(tr);
@@ -413,9 +451,16 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         get_param(combinedParams, "medicalSupport", medStr, sizeof(medStr));
 
         int locId = parseLocationParam(locStr);
-        if (locId < 0) locId = 0;
+        if (locId < 0) {
+            snprintf(res, resSize, "{\"error\":\"Unknown location for destination\"}");
+            return;
+        }
 
         int id = addDestination(-1, name[0] ? name : "Field Hospital", locId, atoi(capStr) > 0 ? atoi(capStr) : 400, 0, atoi(medStr), 1);
+        if (id < 0) {
+            snprintf(res, resSize, "{\"error\":\"Maximum number of destinations reached\"}");
+            return;
+        }
         Destination d = {id, "", locId, atoi(capStr) > 0 ? atoi(capStr) : 400, 0, atoi(medStr), 1};
         snprintf(d.name, sizeof(d.name), "%s", name[0] ? name : "Field Hospital");
         dbAddDestination(d);
@@ -455,6 +500,10 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
             snprintf(res, resSize, "{\"error\":\"Location name is required\"}");
             return;
         }
+        if (getLocationId(name) != -1) {
+            snprintf(res, resSize, "{\"error\":\"Location '%s' already exists\"}", name);
+            return;
+        }
         int id = addLocation(-1, name);
         if (id >= 0) {
             dbAddLocation(id, name);
@@ -473,8 +522,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         int u = parseLocationParam(uStr);
         int v = parseLocationParam(vStr);
         int d = atoi(dStr);
-        if (u >= 0 && v >= 0 && u < numLocations && v < numLocations && d > 0) {
-            addRoad(u, v, d);
+        if (u >= 0 && v >= 0 && u < numLocations && v < numLocations && d > 0 && addRoad(u, v, d) == 0) {
             dbAddRoad(u, v, d);
             snprintf(res, resSize, "{\"status\":\"success\",\"from\":%d,\"to\":%d,\"distance\":%d}", u, v, d);
         } else {
@@ -547,6 +595,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         memset(rawText, 0, sizeof(rawText));
         get_param(combinedParams, "scenario", name, sizeof(name));
         get_param(combinedParams, "content", rawText, sizeof(rawText));
+        clearMissionHistory();
 
         if (rawText[0] != '\0') {
             importScenarioFromString(rawText);
@@ -578,6 +627,7 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
         resetDestinationsOccupancy();
         dbResetResources();
         loadAllData(&emergencyQueue);
+        clearMissionHistory();
         snprintf(res, resSize, "{\"status\":\"success\",\"message\":\"All resources reset to standby and hospital occupancies cleared\"}");
     }
     else {

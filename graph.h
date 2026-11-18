@@ -45,7 +45,7 @@ extern int parent[MAX_LOCATIONS];
    --------------------------------------------------------- */
 void initializeGraph(void);
 int  addLocation(int id, const char *name);                 /* returns the new location's id, -1 if full or id is out of sequence */
-void addRoad(int source, int destination, int distance);    /* distance must be in 1..INF-1 */
+int  addRoad(int source, int destination, int distance);    /* distance must be in 1..INF-1; returns 0 on success, -1 if rejected */
 void loadAssamSampleData(void);                      /* preloads the sample flood scenario locations/roads */
 
 /* ---------------------------------------------------------
@@ -75,7 +75,7 @@ void printRoute(int source, int destination);          /* reconstructs path from
 /* ---------------------------------------------------------
    Lookup helpers / display
    --------------------------------------------------------- */
-int         getLocationId(const char *name);           /* -1 if not found */
+int         getLocationId(const char *name);           /* exact match first, then case-insensitive; -1 if not found */
 const char *getLocationName(int id);
 void        printGraph(void);
 void        printLocations(void);

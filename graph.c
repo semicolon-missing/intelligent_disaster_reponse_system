@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include "graph.h"
 
 /* =========================================================
@@ -64,24 +65,25 @@ int addLocation(int id, const char *name) {
     return id;
 }
 
-void addRoad(int source, int destination, int distance) {
+int addRoad(int source, int destination, int distance) {
     if (!isValidId(source) || !isValidId(destination)) {
         printf("Error: Invalid location id in addRoad().\n");
-        return;
+        return -1;
     }
     if (source == destination) {
         printf("Error: A road cannot connect a location to itself.\n");
-        return;
+        return -1;
     }
     if (distance <= 0 || distance >= INF) {
         printf("Error: Road distance must be between 1 and %d.\n", INF - 1);
-        return;
+        return -1;
     }
     graph[source][destination] = distance;
     graph[destination][source] = distance; /* undirected road */
 
     originalGraph[source][destination] = distance;
     originalGraph[destination][source] = distance;
+    return 0;
 }
 
 void loadAssamSampleData(void) {
@@ -375,6 +377,10 @@ int getLocationId(const char *name) {
     if (name == NULL) return -1;
     for (int i = 0; i < numLocations; i++) {
         if (strcmp(locations[i].name, name) == 0) return i;
+    }
+    /* fall back to a case-insensitive match ("guwahati" finds "Guwahati") */
+    for (int i = 0; i < numLocations; i++) {
+        if (strcasecmp(locations[i].name, name) == 0) return i;
     }
     return -1;
 }

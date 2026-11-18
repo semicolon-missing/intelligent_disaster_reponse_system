@@ -6,6 +6,12 @@
 
 static sqlite3 *db = NULL;
 
+/* sqlite3_column_text() returns NULL for SQL NULL; never hand that to strncpy. */
+static const char *colText(sqlite3_stmt *stmt, int col) {
+    const unsigned char *t = sqlite3_column_text(stmt, col);
+    return t ? (const char *)t : "";
+}
+
 int initDB(const char *dbPath) {
     if (sqlite3_open(dbPath, &db) != SQLITE_OK) {
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
@@ -52,10 +58,10 @@ int dbClearAll(void) {
 int loadAllData(MaxHeap* emergencyQueue) {
     sqlite3_stmt *stmt;
     // Load Locations
-    if (sqlite3_prepare_v2(db, "SELECT id, name FROM Location", -1, &stmt, NULL) == SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT id, name FROM Location ORDER BY id", -1, &stmt, NULL) == SQLITE_OK) {
         initializeGraph();
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            addLocation(sqlite3_column_int(stmt, 0), (const char*)sqlite3_column_text(stmt, 1));
+            addLocation(sqlite3_column_int(stmt, 0), colText(stmt, 1));
         }
         sqlite3_finalize(stmt);
     }
@@ -67,36 +73,37 @@ int loadAllData(MaxHeap* emergencyQueue) {
         sqlite3_finalize(stmt);
     }
     // Load Rescue Teams
-    if (sqlite3_prepare_v2(db, "SELECT id, name, location, capacity, available, medicalKit, boatAvailable FROM RescueTeam", -1, &stmt, NULL) == SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT id, name, location, capacity, available, medicalKit, boatAvailable FROM RescueTeam ORDER BY id", -1, &stmt, NULL) == SQLITE_OK) {
         initRescueResources();
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            addRescueTeam(sqlite3_column_int(stmt, 0), (const char*)sqlite3_column_text(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6));
+            addRescueTeam(sqlite3_column_int(stmt, 0), colText(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6));
         }
         sqlite3_finalize(stmt);
     }
     // Load Transport
-    if (sqlite3_prepare_v2(db, "SELECT id, type, capacity, available, floodSuitable FROM Transport", -1, &stmt, NULL) == SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT id, type, capacity, available, floodSuitable FROM Transport ORDER BY id", -1, &stmt, NULL) == SQLITE_OK) {
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            addTransport(sqlite3_column_int(stmt, 0), (const char*)sqlite3_column_text(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4));
+            addTransport(sqlite3_column_int(stmt, 0), colText(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4));
         }
         sqlite3_finalize(stmt);
     }
     // Load Destinations
-    if (sqlite3_prepare_v2(db, "SELECT id, name, location, capacity, currentOccupancy, medicalSupport, accessible FROM Destination", -1, &stmt, NULL) == SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT id, name, location, capacity, currentOccupancy, medicalSupport, accessible FROM Destination ORDER BY id", -1, &stmt, NULL) == SQLITE_OK) {
         initDestinations();
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            addDestination(sqlite3_column_int(stmt, 0), (const char*)sqlite3_column_text(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6));
+            addDestination(sqlite3_column_int(stmt, 0), colText(stmt, 1), sqlite3_column_int(stmt, 2), sqlite3_column_int(stmt, 3), sqlite3_column_int(stmt, 4), sqlite3_column_int(stmt, 5), sqlite3_column_int(stmt, 6));
         }
         sqlite3_finalize(stmt);
     }
     // Load Emergencies
-    if (sqlite3_prepare_v2(db, "SELECT id, location, hazardType, affectedPeople, peopleNeedingMedical, priorityScore, status FROM Emergency WHERE status != 3", -1, &stmt, NULL) == SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT id, location, hazardType, affectedPeople, peopleNeedingMedical, priorityScore, status FROM Emergency WHERE status != 3 ORDER BY id", -1, &stmt, NULL) == SQLITE_OK) {
         initHeap(emergencyQueue);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             Emergency e;
+            memset(&e, 0, sizeof(e));
             e.id = sqlite3_column_int(stmt, 0);
-            strncpy(e.location, (const char*)sqlite3_column_text(stmt, 1), 49); e.location[49] = '\0';
-            strncpy(e.hazardType, (const char*)sqlite3_column_text(stmt, 2), 49); e.hazardType[49] = '\0';
+            strncpy(e.location, colText(stmt, 1), 49); e.location[49] = '\0';
+            strncpy(e.hazardType, colText(stmt, 2), 49); e.hazardType[49] = '\0';
             e.affectedPeople = sqlite3_column_int(stmt, 3);
             e.peopleNeedingMedical = sqlite3_column_int(stmt, 4);
             /* Recompute instead of trusting the stored value, so rows saved under
@@ -249,4 +256,19 @@ int dbResetResources(void) {
     }
     return 0;
 }
-v
+
+/* Next free emergency id: one past the largest id ever stored (and never
+   below minId). Every front end uses this so a restart can't reuse an id
+   and silently overwrite an existing emergency via INSERT OR REPLACE. */
+int dbNextEmergencyId(int minId) {
+    int next = minId;
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, "SELECT COALESCE(MAX(id), 0) FROM Emergency", -1, &stmt, NULL) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            int maxId = sqlite3_column_int(stmt, 0);
+            if (maxId + 1 > next) next = maxId + 1;
+        }
+        sqlite3_finalize(stmt);
+    }
+    return next;
+}

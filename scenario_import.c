@@ -22,6 +22,20 @@ static char* trim(char* str) {
     return str;
 }
 
+/* Portable re-entrant tokenizer (same behaviour as POSIX strtok_r).
+   strtok_r is missing from the MinGW.org C runtime on Windows, so we
+   ship our own instead of depending on the platform. */
+static char* nextToken(char *str, const char *delims, char **saveptr) {
+    char *s = str ? str : *saveptr;
+    if (!s) return NULL;
+    s += strspn(s, delims);              /* skip leading delimiters */
+    if (*s == '\0') { *saveptr = s; return NULL; }
+    char *end = s + strcspn(s, delims);  /* find end of token */
+    if (*end) { *end = '\0'; *saveptr = end + 1; }
+    else      { *saveptr = end; }
+    return s;
+}
+
 static int parseBoolean(const char* str) {
     if (strcasecmp(str, "1") == 0 || strcasecmp(str, "yes") == 0 || strcasecmp(str, "true") == 0) return 1;
     return 0;
@@ -44,7 +58,7 @@ int importScenarioFromString(const char *content) {
     char section[50] = "";
     
     // Pass 1: Locations
-    line = strtok_r(buf1, "\r\n", &saveptr);
+    line = nextToken(buf1, "\r\n", &saveptr);
     while (line) {
         char *t = trim(line);
         if (t[0] != '#' && t[0] != '\0') {
@@ -52,11 +66,14 @@ int importScenarioFromString(const char *content) {
                 strncpy(section, t, sizeof(section)-1);
                 section[sizeof(section)-1] = '\0';
             } else if (strcmp(section, "[LOCATIONS]") == 0) {
-                int id = addLocation(-1, t);
-                dbAddLocation(id, t);
+                /* skip duplicates; persist only what the graph accepted */
+                if (getLocationId(t) == -1) {
+                    int id = addLocation(-1, t);
+                    if (id >= 0) dbAddLocation(id, t);
+                }
             }
         }
-        line = strtok_r(NULL, "\r\n", &saveptr);
+        line = nextToken(NULL, "\r\n", &saveptr);
     }
     free(buf1);
     
@@ -65,8 +82,8 @@ int importScenarioFromString(const char *content) {
     section[0] = '\0';
     
     // Pass 2: Everything else
-    static int emIdCounter = 100;
-    line = strtok_r(buf2, "\r\n", &saveptr);
+    int emIdCounter = 100;   /* the DB was just cleared, so ids restart cleanly */
+    line = nextToken(buf2, "\r\n", &saveptr);
     while (line) {
         char *t = trim(line);
         if (t[0] != '#' && t[0] != '\0') {
@@ -77,10 +94,10 @@ int importScenarioFromString(const char *content) {
                 char *fields[10];
                 int numFields = 0;
                 char *tokSave;
-                char *token = strtok_r(t, "|", &tokSave);
+                char *token = nextToken(t, "|", &tokSave);
                 while (token && numFields < 10) {
                     fields[numFields++] = trim(token);
-                    token = strtok_r(NULL, "|", &tokSave);
+                    token = nextToken(NULL, "|", &tokSave);
                 }
                 
                 if (strcmp(section, "[ROADS]") == 0) {
@@ -88,8 +105,7 @@ int importScenarioFromString(const char *content) {
                         int from = getLocationId(fields[0]);
                         int to = getLocationId(fields[1]);
                         int dist = atoi(fields[2]);
-                        if (from != -1 && to != -1) {
-                            addRoad(from, to, dist);
+                        if (from != -1 && to != -1 && addRoad(from, to, dist) == 0) {
                             dbAddRoad(from, to, dist);
                         }
                     }
@@ -105,8 +121,8 @@ int importScenarioFromString(const char *content) {
                             t_team.medicalKit = parseBoolean(fields[3]);
                             t_team.boatAvailable = parseBoolean(fields[4]);
                             t_team.available = 1;
-                            addRescueTeam(t_team.id, t_team.name, t_team.location, t_team.capacity, t_team.available, t_team.medicalKit, t_team.boatAvailable);
-                            dbAddRescueTeam(t_team);
+                            if (addRescueTeam(t_team.id, t_team.name, t_team.location, t_team.capacity, t_team.available, t_team.medicalKit, t_team.boatAvailable) >= 0)
+                                dbAddRescueTeam(t_team);
                         }
                     }
                 } else if (strcmp(section, "[TRANSPORT]") == 0) {
@@ -117,8 +133,8 @@ int importScenarioFromString(const char *content) {
                         tr.capacity = atoi(fields[1]);
                         tr.floodSuitable = parseBoolean(fields[2]);
                         tr.available = 1;
-                        addTransport(tr.id, tr.type, tr.capacity, tr.available, tr.floodSuitable);
-                        dbAddTransport(tr);
+                        if (addTransport(tr.id, tr.type, tr.capacity, tr.available, tr.floodSuitable) >= 0)
+                            dbAddTransport(tr);
                     }
                 } else if (strcmp(section, "[DESTINATIONS]") == 0) {
                     if (numFields >= 4) {
@@ -132,15 +148,19 @@ int importScenarioFromString(const char *content) {
                             d.medicalSupport = parseBoolean(fields[3]);
                             d.currentOccupancy = 0;
                             d.accessible = 1;
-                            addDestination(d.id, d.name, d.location, d.capacity, d.currentOccupancy, d.medicalSupport, d.accessible);
-                            dbAddDestination(d);
+                            if (addDestination(d.id, d.name, d.location, d.capacity, d.currentOccupancy, d.medicalSupport, d.accessible) >= 0)
+                                dbAddDestination(d);
                         }
                     }
                 } else if (strcmp(section, "[EMERGENCIES]") == 0) {
-                    if (numFields >= 4) {
+                    /* An emergency must sit on a known map location (it could never be
+                       routed otherwise) and the heap must have room for it. */
+                    int loc = numFields >= 4 ? getLocationId(fields[0]) : -1;
+                    if (loc != -1 && emergencyQueue.size < MAX_EMERGENCIES) {
                         Emergency e;
+                        memset(&e, 0, sizeof(e));
                         e.id = emIdCounter++;
-                        strncpy(e.location, fields[0], 49); e.location[49]='\0';
+                        strncpy(e.location, getLocationName(loc), 49); e.location[49]='\0';
                         strncpy(e.hazardType, fields[1], 49); e.hazardType[49]='\0';
                         e.affectedPeople = atoi(fields[2]);
                         e.peopleNeedingMedical = atoi(fields[3]);
@@ -152,7 +172,7 @@ int importScenarioFromString(const char *content) {
                 }
             }
         }
-        line = strtok_r(NULL, "\r\n", &saveptr);
+        line = nextToken(NULL, "\r\n", &saveptr);
     }
     free(buf2);
     return 0;
@@ -170,14 +190,18 @@ int importScenario(const char *filename) {
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    
+    if (size < 0) {
+        fclose(f);
+        return -1;
+    }
+
     char *content = malloc(size + 1);
     if (!content) {
         fclose(f);
         return -1;
     }
-    fread(content, 1, size, f);
-    content[size] = '\0';
+    size_t got = fread(content, 1, (size_t)size, f);
+    content[got] = '\0';
     fclose(f);
     
     int res = importScenarioFromString(content);

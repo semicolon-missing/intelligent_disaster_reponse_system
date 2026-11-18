@@ -49,3 +49,6 @@ Desktop.ini
 # --- Local secrets (none today; protects you later) ---
 .env
 .env.*
+
+# --- Downloaded third-party sources (build.bat fetches SQLite here) ---
+third_party/

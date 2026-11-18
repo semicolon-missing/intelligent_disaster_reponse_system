@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -737,4 +738,896 @@ static void drawNetworkView(int startY, int maxRows, int maxCols)
     int rightW = maxCols - leftW - 1;
 
     // Left: Road Network List
-    drawBox(startY, 0, viewH, leftW
+    drawBox(startY, 0, viewH, leftW, "ROAD NETWORK & HAZARD CONDITIONS", PAIR_CYAN_ON_BLACK);
+
+    int headerY = startY + 1;
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(headerY, 2, "%-4s %-16s %-16s %-6s %-12s",
+             "ID", "FROM LOCATION", "TO LOCATION", "DIST", "ROAD STATUS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvhline(headerY + 1, 1, ACS_HLINE, leftW - 2);
+
+    int listY = headerY + 2;
+    int listH = viewH - 6;
+
+    if (selRoad >= numRoadList) selRoad = numRoadList - 1;
+    if (selRoad < 0) selRoad = 0;
+    if (selRoad < scrollRoad) scrollRoad = selRoad;
+    if (selRoad >= scrollRoad + listH) scrollRoad = selRoad - listH + 1;
+
+    for (int i = 0; i < listH; i++) {
+        int idx = scrollRoad + i;
+        int curY = listY + i;
+        mvhline(curY, 1, ' ', leftW - 2);
+        if (idx >= numRoadList) break;
+
+        RoadEntry r = roadList[idx];
+        int isSelected = (idx == selRoad);
+
+        if (isSelected) {
+            attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+            mvhline(curY, 1, ' ', leftW - 2);
+        }
+
+        const char *fromName = getLocationName(r.u);
+        const char *toName = getLocationName(r.v);
+        char distStr[16];
+        snprintf(distStr, sizeof(distStr), "%d km", r.distance);
+
+        mvprintw(curY, 2, "#%-3d %-16.16s %-16.16s %-6s",
+                 idx + 1, fromName, toName, distStr);
+
+        if (!isSelected) {
+            if (r.blocked) attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            else attron(COLOR_PAIR(PAIR_OK));
+        }
+
+        printw(" %s", r.blocked ? "✖ BLOCKED" : "✔ CLEAR");
+
+        if (!isSelected) {
+            if (r.blocked) attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            else attroff(COLOR_PAIR(PAIR_OK));
+        }
+
+        if (isSelected) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+    }
+
+    int tipY = startY + viewH - 2;
+    mvhline(tipY - 1, 1, ACS_HLINE, leftW - 2);
+    attron(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+    mvprintw(tipY, 2, "Action: Select road and press [B] or [Space] to toggle Blocked/Clear");
+    attroff(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+
+    // Right: Interactive Route & Reachability Analyzer
+    drawBox(startY, leftW, viewH, rightW, "ALGORITHMIC ROUTE & REACHABILITY ANALYZER", PAIR_CYAN_ON_BLACK);
+
+    int rY = startY + 2;
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(rY++, leftW + 2, "1. DIJKSTRA SHORTEST PATH CALCULATION");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+
+    if (numLocations >= 2) {
+        if (modalDijkstraSrc >= numLocations) modalDijkstraSrc = 0;
+        if (modalDijkstraDest >= numLocations) modalDijkstraDest = numLocations - 1;
+
+        const char *srcName = getLocationName(modalDijkstraSrc);
+        const char *destName = getLocationName(modalDijkstraDest);
+        mvprintw(rY++, leftW + 4, "Origin: %s (ID %d)   -->   Destination: %s (ID %d)",
+                 srcName, modalDijkstraSrc, destName, modalDijkstraDest);
+
+        int dist = getShortestDistance(modalDijkstraSrc, modalDijkstraDest);
+        int path[MAX_LOCATIONS];
+        int pathLen = getShortestPath(modalDijkstraSrc, modalDijkstraDest, path, MAX_LOCATIONS);
+
+        if (dist == INF || pathLen <= 0) {
+            attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            mvprintw(rY++, leftW + 4, "STATUS: UNREACHABLE (Physical road disconnected or blocked by disaster)");
+            attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(PAIR_OK) | A_BOLD);
+            mvprintw(rY++, leftW + 4, "STATUS: CONNECTED (Shortest Distance: %d km)", dist);
+            attroff(COLOR_PAIR(PAIR_OK) | A_BOLD);
+
+            char routeStr[256] = "";
+            for (int k = 0; k < pathLen; k++) {
+                strncat(routeStr, getLocationName(path[k]), sizeof(routeStr) - strlen(routeStr) - 1);
+                if (k < pathLen - 1) strncat(routeStr, " -> ", sizeof(routeStr) - strlen(routeStr) - 1);
+            }
+            mvprintw(rY++, leftW + 4, "Path: %-.*s", rightW - 10, routeStr);
+        }
+    }
+    mvprintw(rY++, leftW + 4, "Hint: Press [P] to change start/destination pair.");
+    rY++;
+
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(rY++, leftW + 2, "2. BFS REACHABILITY VALIDATOR");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+
+    if (modalBfsSrc >= numLocations) modalBfsSrc = 0;
+    const char *bfsSrcName = getLocationName(modalBfsSrc);
+    mvprintw(rY++, leftW + 4, "Start Node: %s (ID %d)", bfsSrcName, modalBfsSrc);
+
+    int reachableCount = 0;
+    char reachableList[256] = "";
+    char unreachableList[256] = "";
+
+    for (int k = 0; k < numLocations; k++) {
+        if (k == modalBfsSrc) continue;
+        if (isReachable(modalBfsSrc, k)) {
+            reachableCount++;
+            if (strlen(reachableList) > 0) strncat(reachableList, ", ", sizeof(reachableList) - strlen(reachableList) - 1);
+            strncat(reachableList, getLocationName(k), sizeof(reachableList) - strlen(reachableList) - 1);
+        } else {
+            if (strlen(unreachableList) > 0) strncat(unreachableList, ", ", sizeof(unreachableList) - strlen(unreachableList) - 1);
+            strncat(unreachableList, getLocationName(k), sizeof(unreachableList) - strlen(unreachableList) - 1);
+        }
+    }
+
+    attron(COLOR_PAIR(PAIR_OK));
+    mvprintw(rY++, leftW + 4, "Reachable Nodes (%d): %-.*s",
+             reachableCount, rightW - 30, reachableList[0] ? reachableList : "None");
+    attroff(COLOR_PAIR(PAIR_OK));
+
+    if (strlen(unreachableList) > 0) {
+        attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+        mvprintw(rY++, leftW + 4, "Disconnected Isolated Nodes: %-.*s",
+                 rightW - 35, unreachableList);
+        attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+    } else {
+        attron(COLOR_PAIR(PAIR_OK));
+        mvprintw(rY++, leftW + 4, "Isolated Nodes: None (Fully Connected Graph)");
+        attroff(COLOR_PAIR(PAIR_OK));
+    }
+    mvprintw(rY++, leftW + 4, "Hint: Press [C] to run BFS reachability analysis on another node.");
+    rY++;
+
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(rY++, leftW + 2, "3. GRAPH VERTEX METRICS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(rY++, leftW + 4, "Total Vertices : %d Locations", numLocations);
+    mvprintw(rY++, leftW + 4, "Total Edges    : %d Road Segments", numRoadList);
+    int blockedCount = 0;
+    for (int k = 0; k < numRoadList; k++) if (roadList[k].blocked) blockedCount++;
+    mvprintw(rY++, leftW + 4, "Blocked Roads  : %d (%s)", blockedCount,
+             blockedCount > 0 ? "Alternate routing in effect" : "Optimal highway connectivity");
+}
+
+/* Tab 3: Resources & Facilities View */
+static void drawResourcesView(int startY, int maxRows, int maxCols) {
+    int viewH = maxRows - startY - 1;
+    int topH = viewH * 48 / 100;
+    int botH = viewH - topH;
+
+    // Top Panel: Rescue Teams & Transport
+    drawBox(startY, 0, topH, maxCols, "RESCUE FLEET & TRANSPORT VEHICLES", PAIR_CYAN_ON_BLACK);
+
+    int tColW = maxCols * 60 / 100;
+    int trColW = maxCols - tColW - 1;
+
+    // Teams Table
+    int headY = startY + 1;
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(headY, 2, "%-4s %-25s %-16s %-5s %-5s %-5s %-9s",
+             "ID", "RESCUE TEAM", "BASE LOCATION", "CAP", "MED", "BOAT", "STATUS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvhline(headY + 1, 1, ACS_HLINE, tColW - 2);
+
+    int tListY = headY + 2;
+    int tListH = topH - 4;
+    for (int i = 0; i < tListH && i < numTeams; i++) {
+        int curY = tListY + i;
+        RescueTeam t = teams[i];
+        int col = t.available ? PAIR_OK : PAIR_CRITICAL;
+        attron(COLOR_PAIR(col));
+        mvprintw(curY, 2, "#%-3d %-25.25s %-16.16s %-5d %-5s %-5s %-9s",
+                 t.id, t.name, getLocationName(t.location), t.capacity,
+                 t.medicalKit ? "YES" : "NO", t.boatAvailable ? "YES" : "NO",
+                 t.available ? "STANDBY" : "DEPLOYED");
+        attroff(COLOR_PAIR(col));
+    }
+
+    // Divider between teams and transport
+    for (int y = startY + 1; y < startY + topH - 1; y++) {
+        mvaddch(y, tColW, ACS_VLINE);
+    }
+
+    // Transports Table
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(headY, tColW + 2, "%-4s %-22s %-6s %-8s %-8s",
+             "ID", "VEHICLE TYPE", "CAP", "AMPHIB", "STATUS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvhline(headY + 1, tColW + 1, ACS_HLINE, trColW - 2);
+
+    for (int i = 0; i < tListH && i < numTransports; i++) {
+        int curY = tListY + i;
+        Transport tr = transports[i];
+        int col = tr.available ? PAIR_OK : PAIR_WARNING;
+        attron(COLOR_PAIR(col));
+        mvprintw(curY, tColW + 2, "#%-3d %-22.22s %-6d %-8s %-8s",
+                 tr.id, tr.type, tr.capacity,
+                 tr.floodSuitable ? "YES" : "NO",
+                 tr.available ? "STANDBY" : "EN ROUTE");
+        attroff(COLOR_PAIR(col));
+    }
+
+    // Bottom Panel: Hospitals & Shelters
+    int botY = startY + topH;
+    drawBox(botY, 0, botH, maxCols, "EMERGENCY HOSPITALS & EVACUATION DESTINATIONS", PAIR_CYAN_ON_BLACK);
+
+    int hHeadY = botY + 1;
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(hHeadY, 2, "%-4s %-30s %-16s %-14s %-22s %-8s %-8s",
+             "ID", "FACILITY NAME", "LOCATION", "BEDS (OCC/CAP)", "CAPACITY LOAD BAR", "TRAUMA", "STATUS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvhline(hHeadY + 1, 1, ACS_HLINE, maxCols - 2);
+
+    int hListY = hHeadY + 2;
+    int hListH = botH - 4;
+    for (int i = 0; i < hListH && i < numDestinations; i++) {
+        int curY = hListY + i;
+        Destination d = destinations[i];
+        float pct = d.capacity > 0 ? ((float)d.currentOccupancy / d.capacity) * 100.0f : 0.0f;
+        int barPairs = PAIR_OK;
+        if (pct >= 85.0f) barPairs = PAIR_CRITICAL;
+        else if (pct >= 50.0f) barPairs = PAIR_WARNING;
+
+        char bedStr[24];
+        snprintf(bedStr, sizeof(bedStr), "%d / %d", d.currentOccupancy, d.capacity);
+
+        // Progress bar: 15 chars
+        int barLen = 15;
+        int filled = (int)((pct / 100.0f) * barLen);
+        if (filled > barLen) filled = barLen;
+        char barStr[32];
+        int pos = 0;
+        barStr[pos++] = '[';
+        for (int b = 0; b < barLen; b++) {
+            barStr[pos++] = (b < filled) ? '|' : ' ';
+        }
+        barStr[pos++] = ']';
+        snprintf(barStr + pos, sizeof(barStr) - pos, " %4.1f%%", pct);
+
+        mvprintw(curY, 2, "#%-3d %-30.30s %-16.16s %-14s ",
+                 d.id, d.name, getLocationName(d.location), bedStr);
+
+        attron(COLOR_PAIR(barPairs) | A_BOLD);
+        printw("%-22s ", barStr);
+        attroff(COLOR_PAIR(barPairs) | A_BOLD);
+
+        attron(COLOR_PAIR(d.medicalSupport ? PAIR_OK : PAIR_DIM));
+        printw("%-8s ", d.medicalSupport ? "YES" : "NO");
+        attroff(COLOR_PAIR(d.medicalSupport ? PAIR_OK : PAIR_DIM));
+
+        attron(COLOR_PAIR(d.accessible ? PAIR_OK : PAIR_CRITICAL));
+        printw("%-8s", d.accessible ? "OPEN" : "CUT OFF");
+        attroff(COLOR_PAIR(d.accessible ? PAIR_OK : PAIR_CRITICAL));
+    }
+}
+
+/* Tab 4: Scenarios & Crisis Simulator View */
+static void drawScenariosView(int startY, int maxRows, int maxCols) {
+    int viewH = maxRows - startY - 1;
+    drawBox(startY, 0, viewH, maxCols, "DISASTER SCENARIOS & CRISIS SIMULATOR", PAIR_CYAN_ON_BLACK);
+
+    int sY = startY + 2;
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(sY++, 4, "SELECT PRE-CONFIGURED CRISIS SCENARIO OR IMPORT CUSTOM TOPOLOGY");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    sY++;
+
+    struct ScenarioCard {
+        int id;
+        const char *key;
+        const char *name;
+        const char *desc;
+        const char *stats;
+    } scenarios[5] = {
+        {1, "[1]", "Multi-Hazard Unified Crisis",
+         "Unified disaster testbed covering Cyclones, Earthquakes, Flash Floods, Landslides, Tsunamis, and Hazmat emergencies across diverse terrain.",
+         "10 Locations | 14 Roads | 7 Teams | 6 Transport | 6 Hospitals | 8 High-Priority Emergencies"},
+        {2, "[2]", "Assam Brahmaputra Floods",
+         "Major monsoon riverbank breaches along the Brahmaputra River. Requires amphibious boats and helicopter evacuations across Guwahati, Tezpur, Dibrugarh.",
+         "8 Locations | 13 Roads | 5 Teams | 4 Transport | 6 Hospitals | 5 Water Emergencies"},
+        {3, "[3]", "Kerala Monsoons & Landslides",
+         "Hilly terrain crisis in the Western Ghats (Wayanad, Idukki, Munnar). Severe road blockages, mudslides, and dam reservoir overflows.",
+         "8 Locations | 9 Roads | 5 Teams | 4 Transport | 5 Hospitals | 4 Landslide Emergencies"},
+        {4, "[4]", "Uttarakhand Cloudburst & Flash Floods",
+         "High-altitude mountain flash flood crisis in Chamoli, Kedarnath, and Joshimath. Highway washouts isolating mountain pilgrimage centers.",
+         "8 Locations | 8 Roads | 5 Teams | 4 Transport | 5 Hospitals | 4 Alpine Emergencies"},
+        {5, "[5]", "Odisha Super Cyclone",
+         "Category 5 coastal cyclone and storm surge hitting Paradip, Puri, and Balasore. Large-scale coastal evacuation to inland trauma centers.",
+         "7 Locations | 8 Roads | 5 Teams | 4 Transport | 5 Hospitals | 4 Coastal Emergencies"}
+    };
+
+    for (int i = 0; i < 5; i++) {
+        int isCurrent = (strcmp(currentScenarioName, scenarios[i].name) == 0);
+        int pair = isCurrent ? PAIR_OK : PAIR_DEFAULT;
+
+        attron(COLOR_PAIR(pair) | A_BOLD);
+        mvprintw(sY++, 4, "%s %s %s",
+                 scenarios[i].key, scenarios[i].name, isCurrent ? "★ (ACTIVE)" : "");
+        attroff(COLOR_PAIR(pair) | A_BOLD);
+
+        attron(COLOR_PAIR(PAIR_DEFAULT));
+        mvprintw(sY++, 8, "%-.*s", maxCols - 12, scenarios[i].desc);
+        attron(COLOR_PAIR(PAIR_DIM));
+        mvprintw(sY++, 8, "Topology: %s", scenarios[i].stats);
+        attroff(COLOR_PAIR(PAIR_DIM));
+        attroff(COLOR_PAIR(PAIR_DEFAULT));
+        sY++;
+    }
+
+    mvhline(sY++, 2, ACS_HLINE, maxCols - 4);
+    attron(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+    mvprintw(sY++, 4, "SIMULATION CONTROLS:");
+    mvprintw(sY++, 6, "• Press [1-5] to instantly load that disaster scenario.");
+    mvprintw(sY++, 6, "• Press [R] to reset all resource availabilities and clear hospital occupancies.");
+    mvprintw(sY++, 6, "• Press [N] to inject a new custom crisis emergency at any time.");
+    attroff(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+}
+
+/* Tab 5: Event Log View */
+static void drawLogView(int startY, int maxRows, int maxCols) {
+    int viewH = maxRows - startY - 1;
+    drawBox(startY, 0, viewH, maxCols, "SYSTEM TACTICAL EVENT LOG & AUDIT TRAIL", PAIR_CYAN_ON_BLACK);
+
+    int logLines = viewH - 4;
+    if (scrollLog < 0) scrollLog = 0;
+    if (scrollLog > logCount - logLines) scrollLog = logCount - logLines;
+    if (scrollLog < 0) scrollLog = 0;
+
+    attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvprintw(startY + 1, 2, "%-10s %s", "TIMESTAMP", "EVENT DETAILS");
+    attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+    mvhline(startY + 2, 1, ACS_HLINE, maxCols - 2);
+
+    int curY = startY + 3;
+    for (int i = 0; i < logLines; i++) {
+        int idx = scrollLog + i;
+        if (idx >= logCount) break;
+        attron(COLOR_PAIR(eventLogs[idx].colorPair));
+        mvprintw(curY++, 2, "[%s]  %-.*s",
+                 eventLogs[idx].timestamp, maxCols - 18, eventLogs[idx].message);
+        attroff(COLOR_PAIR(eventLogs[idx].colorPair));
+    }
+
+    attron(COLOR_PAIR(PAIR_DIM));
+    mvprintw(startY + viewH - 1, 4,
+             "Showing events %d - %d of %d | Use [Up/Down/PageUp/PageDown] to scroll",
+             scrollLog + 1, (scrollLog + logLines > logCount ? logCount : scrollLog + logLines), logCount);
+    attroff(COLOR_PAIR(PAIR_DIM));
+}
+
+/* Render Active Modals */
+static void drawModals(int maxRows, int maxCols) {
+    if (activeModal == MODAL_NONE) return;
+
+    if (activeModal == MODAL_DISPATCH_RESULT) {
+        int mW = maxCols > 76 ? 74 : maxCols - 4;
+        int mH = 21;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "MISSION DISPATCH DIRECTIVE", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        attron(COLOR_PAIR(PAIR_OK) | A_BOLD);
+        mvprintw(line++, mX + 3, "MISSION AUTHORIZED :: CRISIS DIRECTIVE #%d", lastDispatch.emergencyId);
+        attroff(COLOR_PAIR(PAIR_OK) | A_BOLD);
+        mvprintw(line++, mX + 3, "Execution Time      : %s", lastDispatch.timestamp);
+        mvprintw(line++, mX + 3, "Incident Site       : %s [Hazard: %s]", lastDispatch.location, lastDispatch.hazardType);
+        mvprintw(line++, mX + 3, "Casualty Scale      : %d affected (%d requiring critical care)",
+                 lastDispatch.affectedPeople, lastDispatch.peopleNeedingMedical);
+        mvprintw(line++, mX + 3, "Priority Score      : %.2f / 10.0", lastDispatch.priorityScore);
+        mvhline(line++, mX + 2, ACS_HLINE, mW - 4);
+
+        attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+        mvprintw(line++, mX + 3, "RESOURCES COMMITTED");
+        attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+        mvprintw(line++, mX + 3, "Assigned Rescue Team: %s (Base: %s)", lastDispatch.teamName, lastDispatch.teamBase);
+        mvprintw(line++, mX + 3, "Transport Vehicle   : %s", lastDispatch.transportType);
+        mvprintw(line++, mX + 3, "Receiving Facility  : %s (Location: %s)", lastDispatch.destName, lastDispatch.destLocation);
+        mvprintw(line++, mX + 3, "Hospital Bed Load   : %d / %d beds (Updated)",
+                 lastDispatch.destOccupancy, lastDispatch.destCapacity);
+        mvhline(line++, mX + 2, ACS_HLINE, mW - 4);
+
+        attron(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+        mvprintw(line++, mX + 3, "DIJKSTRA TRANSIT CORRIDORS");
+        attroff(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+        mvprintw(line++, mX + 3, "Route to Incident   : %-.*s (%d km)", mW - 32, lastDispatch.routeToEmergency, lastDispatch.distToEmergency);
+        mvprintw(line++, mX + 3, "Route to Hospital   : %-.*s (%d km)", mW - 32, lastDispatch.routeToDestination, lastDispatch.distToDestination);
+        attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+        mvprintw(line++, mX + 3, "Total Mission Dist  : %d km", lastDispatch.totalDist);
+        attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + (mW - 28) / 2, " [ Press Enter / Esc to Close ] ");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+    else if (activeModal == MODAL_NEW_EMERGENCY) {
+        int mW = maxCols > 66 ? 64 : maxCols - 4;
+        int mH = 17;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "REPORT NEW CRISIS EMERGENCY", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        mvprintw(line++, mX + 3, "Enter incident parameters to calculate priority score & queue:");
+        line++;
+
+        // Field 0: Location
+        if (newEmField == 0) attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+        mvprintw(line++, mX + 3, "1. Location     : < %-20.20s >", getLocationName(newEmLocIdx));
+        if (newEmField == 0) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+
+        // Field 1: Hazard Type
+        if (newEmField == 1) attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+        mvprintw(line++, mX + 3, "2. Hazard Type  : < %-20.20s >", hazardTypesList[newEmHazardIdx]);
+        if (newEmField == 1) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+
+        // Field 2: Affected People
+        if (newEmField == 2) attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+        mvprintw(line++, mX + 3, "3. Affected Souls : [ %-6d ] (Left/Right to adjust)", newEmAffected);
+        if (newEmField == 2) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+
+        // Field 3: People Needing Medical
+        if (newEmField == 3) attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+        mvprintw(line++, mX + 3, "4. Urgent Medical : [ %-6d ] (Left/Right to adjust)", newEmMedical);
+        if (newEmField == 3) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+
+        // Live preview of calculated priority
+        Emergency tempE;
+        memset(&tempE, 0, sizeof(tempE));
+        strncpy(tempE.hazardType, hazardTypesList[newEmHazardIdx], sizeof(tempE.hazardType) - 1);
+        tempE.affectedPeople = newEmAffected;
+        tempE.peopleNeedingMedical = newEmMedical;
+        float previewScore = calculatePriority(tempE);
+
+        line++;
+        mvhline(line++, mX + 2, ACS_HLINE, mW - 4);
+        attron(COLOR_PAIR(PAIR_OK) | A_BOLD);
+        mvprintw(line++, mX + 3, "Calculated Composite Priority Score : %.2f / 10.0", previewScore);
+        attroff(COLOR_PAIR(PAIR_OK) | A_BOLD);
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + 4, "[Up/Down] Field  [Left/Right] Value  [Enter] Confirm  [Esc] Cancel");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+    else if (activeModal == MODAL_DIJKSTRA) {
+        int mW = maxCols > 66 ? 64 : maxCols - 4;
+        int mH = 16;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "DIJKSTRA SHORTEST PATH ROUTE QUERY", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        mvprintw(line++, mX + 3, "Select Origin and Destination to compute shortest unblocked path:");
+        line++;
+
+        mvprintw(line++, mX + 3, "Origin Node      [Left/Right] : < %s >", getLocationName(modalDijkstraSrc));
+        mvprintw(line++, mX + 3, "Destination Node [Up/Down]    : < %s >", getLocationName(modalDijkstraDest));
+        mvhline(line++, mX + 2, ACS_HLINE, mW - 4);
+
+        int dist = getShortestDistance(modalDijkstraSrc, modalDijkstraDest);
+        int path[MAX_LOCATIONS];
+        int pathLen = getShortestPath(modalDijkstraSrc, modalDijkstraDest, path, MAX_LOCATIONS);
+
+        if (dist == INF || pathLen <= 0) {
+            attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            mvprintw(line++, mX + 3, "STATUS: UNREACHABLE (No clear path exists)");
+            attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(PAIR_OK) | A_BOLD);
+            mvprintw(line++, mX + 3, "Shortest Distance : %d km", dist);
+            attroff(COLOR_PAIR(PAIR_OK) | A_BOLD);
+            char rStr[256] = "";
+            for (int k = 0; k < pathLen; k++) {
+                strncat(rStr, getLocationName(path[k]), sizeof(rStr) - strlen(rStr) - 1);
+                if (k < pathLen - 1) strncat(rStr, " -> ", sizeof(rStr) - strlen(rStr) - 1);
+            }
+            mvprintw(line++, mX + 3, "Path: %-.*s", mW - 12, rStr);
+        }
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + (mW - 30) / 2, " [ Press Enter / Esc to Close ] ");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+    else if (activeModal == MODAL_BFS) {
+        int mW = maxCols > 66 ? 64 : maxCols - 4;
+        int mH = 16;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "BFS REACHABILITY & CLUSTER VALIDATOR", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        mvprintw(line++, mX + 3, "Select Starting Node to verify flood reachability [Left/Right]:");
+        line++;
+
+        mvprintw(line++, mX + 3, "Root Location: < %s (ID %d) >", getLocationName(modalBfsSrc), modalBfsSrc);
+        mvhline(line++, mX + 2, ACS_HLINE, mW - 4);
+
+        char reachableList[256] = "";
+        char unreachableList[256] = "";
+        int reachableCount = 0;
+
+        for (int k = 0; k < numLocations; k++) {
+            if (k == modalBfsSrc) continue;
+            if (isReachable(modalBfsSrc, k)) {
+                reachableCount++;
+                if (strlen(reachableList) > 0) strncat(reachableList, ", ", sizeof(reachableList) - strlen(reachableList) - 1);
+                strncat(reachableList, getLocationName(k), sizeof(reachableList) - strlen(reachableList) - 1);
+            } else {
+                if (strlen(unreachableList) > 0) strncat(unreachableList, ", ", sizeof(unreachableList) - strlen(unreachableList) - 1);
+                strncat(unreachableList, getLocationName(k), sizeof(unreachableList) - strlen(unreachableList) - 1);
+            }
+        }
+
+        attron(COLOR_PAIR(PAIR_OK));
+        mvprintw(line++, mX + 3, "Connected Nodes (%d): %-.*s", reachableCount, mW - 28, reachableList[0] ? reachableList : "None");
+        attroff(COLOR_PAIR(PAIR_OK));
+
+        if (strlen(unreachableList) > 0) {
+            attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            mvprintw(line++, mX + 3, "Isolated / Severed: %-.*s", mW - 28, unreachableList);
+            attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(PAIR_OK));
+            mvprintw(line++, mX + 3, "Fully connected to all network locations.");
+            attroff(COLOR_PAIR(PAIR_OK));
+        }
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + (mW - 30) / 2, " [ Press Enter / Esc to Close ] ");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+    else if (activeModal == MODAL_SCENARIO_SELECT) {
+        int mW = maxCols > 66 ? 64 : maxCols - 4;
+        int mH = 15;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "QUICK SCENARIO SWITCHER", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        mvprintw(line++, mX + 3, "Select scenario number to reload simulation:");
+        line++;
+
+        const char *scNames[5] = {
+            "[1] Multi-Hazard Unified Crisis (Sample)",
+            "[2] Assam Brahmaputra Floods",
+            "[3] Kerala Floods & Landslides",
+            "[4] Uttarakhand Cloudburst",
+            "[5] Odisha Super Cyclone"
+        };
+
+        for (int i = 0; i < 5; i++) {
+            if (modalScenarioChoice == i) attron(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+            mvprintw(line++, mX + 4, "%s", scNames[i]);
+            if (modalScenarioChoice == i) attroff(COLOR_PAIR(PAIR_SELECTED) | A_BOLD);
+        }
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + 3, " [1-5/Up/Down] Select  [Enter] Load  [Esc] Cancel ");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+    else if (activeModal == MODAL_HELP) {
+        int mW = maxCols > 76 ? 74 : maxCols - 4;
+        int mH = 21;
+        int mX = (maxCols - mW) / 2;
+        int mY = (maxRows - mH) / 2;
+
+        drawBox(mY, mX, mH, mW, "IDRS COMMAND CENTER USER MANUAL & SHORTCUTS", PAIR_TAB_ACTIVE);
+
+        int line = mY + 2;
+        attron(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+        mvprintw(line++, mX + 3, "KEYBOARD SHORTCUTS & NAVIGATION");
+        attroff(COLOR_PAIR(PAIR_HEADER) | A_BOLD);
+        mvprintw(line++, mX + 3, "[1 - 5] or [Tab]  : Switch between HUD Views");
+        mvprintw(line++, mX + 3, "[D] or [Space]    : Dispatch highest priority incident (Max-Heap)");
+        mvprintw(line++, mX + 3, "[N]               : Report new disaster emergency (Interactive Form)");
+        mvprintw(line++, mX + 3, "[B]               : Toggle road blockage on selected road");
+        mvprintw(line++, mX + 3, "[P]               : Calculate shortest unblocked route (Dijkstra)");
+        mvprintw(line++, mX + 3, "[C]               : Test network reachability & connectivity (BFS)");
+        mvprintw(line++, mX + 3, "[S]               : Quick scenario switcher");
+        mvprintw(line++, mX + 3, "[R]               : Reset simulation resources and occupancies");
+        mvprintw(line++, mX + 3, "[Up / Down]       : Navigate lists and table cursors");
+        mvprintw(line++, mX + 3, "[Q] or [Esc]      : Quit / Exit modal");
+        line++;
+
+        attron(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+        mvprintw(line++, mX + 3, "ALGORITHMIC GUARANTEES");
+        attroff(COLOR_PAIR(PAIR_ACCENT) | A_BOLD);
+        mvprintw(line++, mX + 3, "• Priority Queue : Max-Heap O(log N) composite hazard score");
+        mvprintw(line++, mX + 3, "• Shortest Path  : Dijkstra with intermediate vertex reconstruction");
+        mvprintw(line++, mX + 3, "• Reachability   : BFS O(V + E) flood disconnect validation");
+        mvprintw(line++, mX + 3, "• Resource Match : Multi-criteria greedy team & hospital optimizer");
+
+        attron(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+        mvprintw(mY + mH - 2, mX + (mW - 28) / 2, " [ Press Enter / Esc to Close ] ");
+        attroff(COLOR_PAIR(PAIR_STATUS_BAR) | A_BOLD);
+    }
+}
+
+/* Main Loop */
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+
+    signal(SIGINT, handleSignal);
+    signal(SIGTERM, handleSignal);
+
+    // Initialize Database
+    if (initDB("disaster_v2.db") != 0) {
+        fprintf(stderr, "Failed to initialize SQLite database 'disaster_v2.db'.\n");
+        return 1;
+    }
+
+    initHeap(&emergencyQueue);
+    loadAllData(&emergencyQueue);
+
+    if (numLocations == 0) {
+        if (importScenario("sample_natural_disasters.txt") != 0) {
+            loadAssamDemo();
+        }
+        strncpy(currentScenarioName, "Multi-Hazard Unified Crisis", sizeof(currentScenarioName) - 1);
+    } else {
+        strncpy(currentScenarioName, "Persistent SQLite Scenario", sizeof(currentScenarioName) - 1);
+    }
+
+    refreshRoadList();
+
+    // Initialize Curses
+    initscr();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+    timeout(500); // 500ms timeout for non-blocking clock update
+
+    if (has_colors()) {
+        start_color();
+        use_default_colors();
+
+        init_pair(PAIR_DEFAULT, COLOR_WHITE, -1);
+        init_pair(PAIR_HEADER, COLOR_CYAN, -1);
+        init_pair(PAIR_TAB_ACTIVE, COLOR_BLACK, COLOR_CYAN);
+        init_pair(PAIR_TAB_INACTIVE, COLOR_WHITE, -1);
+        init_pair(PAIR_CRITICAL, COLOR_RED, -1);
+        init_pair(PAIR_WARNING, COLOR_YELLOW, -1);
+        init_pair(PAIR_OK, COLOR_GREEN, -1);
+        init_pair(PAIR_SELECTED, COLOR_BLACK, COLOR_WHITE);
+        init_pair(PAIR_STATUS_BAR, COLOR_BLACK, COLOR_CYAN);
+        init_pair(PAIR_ACCENT, COLOR_MAGENTA, -1);
+        init_pair(PAIR_DIM, COLOR_BLUE, -1);
+        init_pair(PAIR_CYAN_ON_BLACK, COLOR_CYAN, -1);
+        init_pair(PAIR_MAGENTA_ON_BLACK, COLOR_MAGENTA, -1);
+    }
+
+    addLog(PAIR_OK, "[SYSTEM] IDRS Tactical Command TUI initialized successfully");
+    addLog(PAIR_OK, "[SYSTEM] Active Scenario: %s (%d locations, %d roads, %d pending incidents)",
+           currentScenarioName, numLocations, numRoadList, emergencyQueue.size);
+
+    int ch;
+    int running = 1;
+
+    while (running) {
+        // Location pickers cycle with "% numLocations": never open them on an empty map
+        if (numLocations == 0 &&
+            (activeModal == MODAL_DIJKSTRA || activeModal == MODAL_BFS || activeModal == MODAL_NEW_EMERGENCY)) {
+            addLog(PAIR_WARNING, "[SYSTEM] No locations loaded. Press [S] to load a scenario first.");
+            activeModal = MODAL_NONE;
+        }
+
+        int maxRows, maxCols;
+        getmaxyx(stdscr, maxRows, maxCols);
+        erase();
+
+        if (maxRows < 20 || maxCols < 75) {
+            attron(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            mvprintw(maxRows / 2, (maxCols - 45) / 2 > 0 ? (maxCols - 45) / 2 : 0,
+                     "TERMINAL TOO SMALL: PLEASE ENLARGE WINDOW (MIN 80x24)");
+            attroff(COLOR_PAIR(PAIR_CRITICAL) | A_BOLD);
+            refresh();
+            ch = getch();
+            if (ch == 'q' || ch == 'Q') break;
+            continue;
+        }
+
+        drawHeader();
+        drawFooter();
+
+        int startY = 3;
+        switch (currentTab) {
+            case TAB_DASHBOARD:
+                drawDashboardView(startY, maxRows, maxCols);
+                break;
+            case TAB_NETWORK:
+                drawNetworkView(startY, maxRows, maxCols);
+                break;
+            case TAB_RESOURCES:
+                drawResourcesView(startY, maxRows, maxCols);
+                break;
+            case TAB_SCENARIOS:
+                drawScenariosView(startY, maxRows, maxCols);
+                break;
+            case TAB_LOG:
+                drawLogView(startY, maxRows, maxCols);
+                break;
+        }
+
+        if (activeModal != MODAL_NONE) {
+            drawModals(maxRows, maxCols);
+        }
+
+        refresh();
+
+        ch = getch();
+        if (ch == ERR) continue; // timeout expired, redraw clock & stats
+
+        // Modal Input Handling
+        if (activeModal != MODAL_NONE) {
+            if (ch == 27 || ch == 'q' || ch == 'Q') { // Esc or Q closes modal
+                activeModal = MODAL_NONE;
+                continue;
+            }
+
+            if (activeModal == MODAL_DISPATCH_RESULT ||
+                activeModal == MODAL_DIJKSTRA ||
+                activeModal == MODAL_BFS ||
+                activeModal == MODAL_HELP) {
+                if (ch == '\n' || ch == KEY_ENTER || ch == ' ') {
+                    activeModal = MODAL_NONE;
+                }
+                // Allow changing Dijkstra inputs inside modal
+                if (activeModal == MODAL_DIJKSTRA) {
+                    if (ch == KEY_LEFT) {
+                        modalDijkstraSrc = (modalDijkstraSrc - 1 + numLocations) % numLocations;
+                    } else if (ch == KEY_RIGHT) {
+                        modalDijkstraSrc = (modalDijkstraSrc + 1) % numLocations;
+                    } else if (ch == KEY_UP) {
+                        modalDijkstraDest = (modalDijkstraDest - 1 + numLocations) % numLocations;
+                    } else if (ch == KEY_DOWN) {
+                        modalDijkstraDest = (modalDijkstraDest + 1) % numLocations;
+                    }
+                } else if (activeModal == MODAL_BFS) {
+                    if (ch == KEY_LEFT) {
+                        modalBfsSrc = (modalBfsSrc - 1 + numLocations) % numLocations;
+                    } else if (ch == KEY_RIGHT) {
+                        modalBfsSrc = (modalBfsSrc + 1) % numLocations;
+                    }
+                }
+                continue;
+            }
+
+            if (activeModal == MODAL_SCENARIO_SELECT) {
+                if (ch >= '1' && ch <= '5') {
+                    loadScenarioById(ch - '0');
+                    activeModal = MODAL_NONE;
+                } else if (ch == KEY_UP) {
+                    modalScenarioChoice = (modalScenarioChoice - 1 + 5) % 5;
+                } else if (ch == KEY_DOWN) {
+                    modalScenarioChoice = (modalScenarioChoice + 1) % 5;
+                } else if (ch == '\n' || ch == KEY_ENTER) {
+                    loadScenarioById(modalScenarioChoice + 1);
+                    activeModal = MODAL_NONE;
+                }
+                continue;
+            }
+
+            if (activeModal == MODAL_NEW_EMERGENCY) {
+                if (ch == KEY_UP) {
+                    newEmField = (newEmField - 1 + 4) % 4;
+                } else if (ch == KEY_DOWN) {
+                    newEmField = (newEmField + 1) % 4;
+                } else if (ch == KEY_LEFT) {
+                    if (newEmField == 0) newEmLocIdx = (newEmLocIdx - 1 + numLocations) % numLocations;
+                    else if (newEmField == 1) newEmHazardIdx = (newEmHazardIdx - 1 + numHazardTypes) % numHazardTypes;
+                    else if (newEmField == 2) { if (newEmAffected > 10) newEmAffected -= 10; }
+                    else if (newEmField == 3) { if (newEmMedical > 5) newEmMedical -= 5; }
+                } else if (ch == KEY_RIGHT) {
+                    if (newEmField == 0) newEmLocIdx = (newEmLocIdx + 1) % numLocations;
+                    else if (newEmField == 1) newEmHazardIdx = (newEmHazardIdx + 1) % numHazardTypes;
+                    else if (newEmField == 2) newEmAffected += 10;
+                    else if (newEmField == 3) { if (newEmMedical < newEmAffected) newEmMedical += 5; }
+                } else if (ch == '\n' || ch == KEY_ENTER) {
+                    // Create Emergency
+                    if (emergencyQueue.size >= MAX_EMERGENCIES) {
+                        addLog(PAIR_WARNING, "[INCIDENT] Queue full (%d). Dispatch some alerts first.", MAX_EMERGENCIES);
+                        activeModal = MODAL_NONE;
+                        continue;
+                    }
+                    Emergency ne;
+                    memset(&ne, 0, sizeof(ne));
+                    ne.id = dbNextEmergencyId(800);   /* never reuses an id already in the database */
+                    strncpy(ne.location, getLocationName(newEmLocIdx), sizeof(ne.location) - 1);
+                    strncpy(ne.hazardType, hazardTypesList[newEmHazardIdx], sizeof(ne.hazardType) - 1);
+                    ne.affectedPeople = newEmAffected;
+                    ne.peopleNeedingMedical = newEmMedical;
+                    ne.status = STATUS_PENDING;
+                    ne.priorityScore = calculatePriority(ne);
+
+                    dbAddEmergency(ne);
+                    insertEmergency(&emergencyQueue, ne);
+                    addLog(PAIR_OK, "[INCIDENT] Emergency #%d registered at %s [%s] (Pri: %.2f)",
+                           ne.id, ne.location, ne.hazardType, ne.priorityScore);
+                    activeModal = MODAL_NONE;
+                }
+                continue;
+            }
+        }
+
+        // Global Navigation & Actions
+        if (ch == 'q' || ch == 'Q') {
+            running = 0;
+            break;
+        } else if (ch == '\t') {
+            currentTab = (currentTab + 1) % NUM_TABS;
+        } else if (ch == '1') {
+            currentTab = TAB_DASHBOARD;
+        } else if (ch == '2') {
+            currentTab = TAB_NETWORK;
+        } else if (ch == '3') {
+            currentTab = TAB_RESOURCES;
+        } else if (ch == '4') {
+            currentTab = TAB_SCENARIOS;
+        } else if (ch == '5') {
+            currentTab = TAB_LOG;
+        } else if (ch == 'd' || ch == 'D' || (ch == ' ' && currentTab == TAB_DASHBOARD)) {
+            doDispatchHighest();
+        } else if (ch == 'n' || ch == 'N') {
+            activeModal = MODAL_NEW_EMERGENCY;
+        } else if (ch == 'b' || ch == 'B') {
+            if (currentTab == TAB_NETWORK) {
+                toggleRoadBlock(selRoad);
+            } else {
+                currentTab = TAB_NETWORK;
+            }
+        } else if (ch == ' ' && currentTab == TAB_NETWORK) {
+            toggleRoadBlock(selRoad);
+        } else if (ch == 'p' || ch == 'P') {
+            activeModal = MODAL_DIJKSTRA;
+        } else if (ch == 'c' || ch == 'C') {
+            activeModal = MODAL_BFS;
+        } else if (ch == 's' || ch == 'S') {
+            activeModal = MODAL_SCENARIO_SELECT;
+        } else if (ch == 'r' || ch == 'R') {
+            doResetSimulation();
+        } else if (ch == '?' || ch == 'h' || ch == 'H') {
+            activeModal = MODAL_HELP;
+        }
+        // Arrow Keys in Views
+        else if (currentTab == TAB_DASHBOARD) {
+            if (ch == KEY_UP) {
+                if (selEmergency > 0) selEmergency--;
+            } else if (ch == KEY_DOWN) {
+                if (selEmergency < emergencyQueue.size - 1) selEmergency++;
+            }
+        } else if (currentTab == TAB_NETWORK) {
+            if (ch == KEY_UP) {
+                if (selRoad > 0) selRoad--;
+            } else if (ch == KEY_DOWN) {
+                if (selRoad < numRoadList - 1) selRoad++;
+            }
+        } else if (currentTab == TAB_LOG) {
+            if (ch == KEY_UP) {
+                if (scrollLog > 0) scrollLog--;
+            } else if (ch == KEY_DOWN) {
+                if (scrollLog < logCount - 1) scrollLog++;
+            } else if (ch == KEY_PPAGE) {
+                scrollLog -= 10;
+                if (scrollLog < 0) scrollLog = 0;
+            } else if (ch == KEY_NPAGE) {
+                scrollLog += 10;
+                if (scrollLog > logCount - 1) scrollLog = logCount - 1;
+            }
+        }
+    }
+
+    endwin();
+    closeDB();
+    printf("\nIDRS TUI Terminated Cleanly. Stay safe!\n");
+    return 0;
+}
