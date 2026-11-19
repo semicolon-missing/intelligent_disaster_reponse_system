@@ -636,7 +636,10 @@ void apiHandler(const char *method, const char *raw_path, const char *body, char
 }
 
 int main(int argc, char **argv) {
-    int port = (argc > 1) ? atoi(argv[1]) : 8080;   /* optional: ./web <port> */
+    const char *port_env = getenv("PORT");
+    int port = (argc > 1) ? atoi(argv[1])
+             : (port_env && port_env[0] != '\0') ? atoi(port_env)
+             : 8080;  
     if (port <= 0 || port > 65535) port = 8080;
     if (initDB("disaster_v2.db") != 0) {
         printf("Failed to initialize database.\n");
